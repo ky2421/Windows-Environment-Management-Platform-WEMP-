@@ -19,6 +19,8 @@ public class DatabaseSchemaTests
         // 优化记录
         "optimization_items",
         "optimization_records",
+        // 游戏模式
+        "game_sessions",
         // 日志
         "audit_logs",
         "system_events",

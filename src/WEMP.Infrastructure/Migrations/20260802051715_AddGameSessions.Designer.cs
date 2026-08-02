@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WEMP.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using WEMP.Infrastructure.Data;
 namespace WEMP.Migrations
 {
     [DbContext(typeof(WempDbContext))]
-    partial class WempDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802051715_AddGameSessions")]
+    partial class AddGameSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");

@@ -34,7 +34,7 @@ IModule
 |---|---|---|
 | SystemInfo（系统检测） | 硬件/系统/进程/开发环境信息采集与快照持久化 | Windows API、WMI、Infrastructure |
 | Optimization（系统优化） | 知识库驱动的一键/自定义优化，备份-应用-回滚三阶段，操作审计 | Core、Infrastructure |
-| GameMode（游戏模式） | 游戏会话检测与系统状态切换 | Core、Optimization |
+| GameMode（游戏模式） | 游戏会话检测（自动/手动）与系统状态切换，会话记录持久化 | Core、Optimization、Infrastructure |
 | DevEnvironment（开发环境） | YAML 模板化工具链部署 | Core、PackageManagement |
 | PackageManagement（软件包管理） | winget/choco/scoop 聚合 | Core |
 | Backup（备份恢复，规划） | 还原点、文件增量备份 | Core |
@@ -42,7 +42,7 @@ IModule
 
 ## 5. 数据层
 
-SQLite 单库，EF Core 8。19 张核心表覆盖六类数据（用户配置 / 系统快照 / 优化记录 / 日志 / 软件清单 / 开发环境）。详见数据库设计文档与 `src/WEMP.Infrastructure/Data/`。
+SQLite 单库，EF Core 8。20 张核心表覆盖六类数据（用户配置 / 系统快照 / 优化记录 / 日志 / 软件清单 / 开发环境）。详见数据库设计文档与 `src/WEMP.Infrastructure/Data/`。
 
 ## 6. 技术栈
 

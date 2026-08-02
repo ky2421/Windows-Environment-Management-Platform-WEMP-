@@ -1,0 +1,86 @@
+<UserControl x:Class="WEMP.GameMode.UI.GameModePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="900">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 标题与自动监测开关 -->
+        <DockPanel Grid.Row="0">
+            <TextBlock Text="游戏模式"
+                       FontSize="22" FontWeight="Bold"
+                       VerticalAlignment="Center" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="自动监测" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <CheckBox IsChecked="{Binding IsAutoMonitor, Mode=TwoWay}" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- 当前会话卡片 -->
+        <Border Grid.Row="1" Margin="0,14,0,0" Padding="16" Background="#F5F6F8" CornerRadius="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="{Binding CurrentGame}" FontSize="20" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Elapsed}" FontSize="14" Foreground="#666666" Margin="0,4,0,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="手动开始" Command="{Binding StartSessionCommand}"
+                            Padding="12,6" Margin="0,0,8,0"
+                            Visibility="{Binding HasSession, Converter={StaticResource BoolToVis}}" />
+                    <Button Content="结束会话" Command="{Binding EndSessionCommand}"
+                            Padding="12,6" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 说明 -->
+        <TextBlock Grid.Row="2" Margin="0,10,0,0" Foreground="#666666" FontSize="12"
+                   Text="开启自动监测后，当前台窗口命中游戏库时自动进入游戏模式（高性能电源 + 释放后台进程），离开游戏时自动恢复。" />
+
+        <!-- 会话历史 -->
+        <TextBlock Grid.Row="3" Text="最近会话" FontWeight="Bold" Margin="0,16,0,0" />
+        <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+            <ItemsControl ItemsSource="{Binding History}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,4,0,4" Padding="10" Background="#F5F6F8" CornerRadius="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="120" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding GameName}" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1" Text="{Binding StartedAt, StringFormat=MM-dd HH:mm:ss}"
+                                           FontSize="12" Foreground="#888888" />
+                                <TextBlock Grid.Column="2" Text="{Binding DurationSeconds, StringFormat={}{0} 秒}"
+                                           FontSize="12" Foreground="#666666"
+                                           HorizontalAlignment="Right" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

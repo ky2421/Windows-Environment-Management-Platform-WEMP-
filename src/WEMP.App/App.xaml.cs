@@ -18,6 +18,8 @@ public partial class App : Application
 {
     private IServiceProvider? _services;
     private IModuleHost? _moduleHost;
+    private WEMP.GameMode.Services.GameSessionMonitor? _gameMonitor;
+    private WEMP.GameMode.Services.IGameSessionService? _sessionService;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -69,6 +71,12 @@ public partial class App : Application
             await _moduleHost.ActivateAllAsync().ConfigureAwait(true);
             Log.Information("启动：模块初始化完成，共 {Count} 个模块", _moduleHost.Modules.Count);
 
+            // 启动游戏模式自动监测（按设置开关生效）
+            _gameMonitor = _services.GetRequiredService<WEMP.GameMode.Services.GameSessionMonitor>();
+            _sessionService = _services.GetRequiredService<WEMP.GameMode.Services.IGameSessionService>();
+            _gameMonitor.Start();
+            Log.Information("启动：游戏模式监测器已就绪");
+
             var window = _services.GetRequiredService<MainWindow>();
             MainWindow = window;
             window.Show();
@@ -90,6 +98,13 @@ public partial class App : Application
     {
         try
         {
+            // 停止游戏监测并结束进行中的会话（保存记录、恢复系统状态）
+            _gameMonitor?.Dispose();
+            if (_sessionService is WEMP.GameMode.Services.GameSessionService concrete)
+            {
+                await concrete.DisposeAsync().ConfigureAwait(true);
+            }
+
             if (_moduleHost is not null)
             {
                 await _moduleHost.ShutdownAllAsync().ConfigureAwait(true);
@@ -113,6 +128,14 @@ public partial class App : Application
         services.AddSingleton<WEMP.SystemInfo.Persistence.ISnapshotRepository, WEMP.SystemInfo.Persistence.SnapshotRepository>();
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoViewModel>();
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoPage>();
+
+        // 游戏模式模块
+        services.AddSingleton<WEMP.GameMode.Detection.IGameDetector, WEMP.GameMode.Detection.GameLibraryDetector>();
+        services.AddSingleton<WEMP.GameMode.Services.IGameStateSwitcher, WEMP.GameMode.Services.SystemStateSwitcher>();
+        services.AddSingleton<WEMP.GameMode.Services.IGameSessionService, WEMP.GameMode.Services.GameSessionService>();
+        services.AddSingleton<WEMP.GameMode.Services.GameSessionMonitor>();
+        services.AddTransient<WEMP.GameMode.UI.GameModePageViewModel>();
+        services.AddTransient<WEMP.GameMode.UI.GameModePage>();
 
         // 系统优化模块
         services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.RegistryAction>();
