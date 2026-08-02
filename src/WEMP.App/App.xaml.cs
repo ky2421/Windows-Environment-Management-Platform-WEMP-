@@ -129,6 +129,13 @@ public partial class App : Application
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoViewModel>();
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoPage>();
 
+        // 软件包管理模块
+        services.AddSingleton<WEMP.PackageManagement.Winget.IPackageProvider, WEMP.PackageManagement.Winget.WingetCli>();
+        services.AddSingleton<WEMP.PackageManagement.Services.IPackageManagerService, WEMP.PackageManagement.Services.PackageManagerService>();
+        services.AddSingleton<WEMP.PackageManagement.Services.ISoftwareGroupService, WEMP.PackageManagement.Services.SoftwareGroupService>();
+        services.AddTransient<WEMP.PackageManagement.UI.PackageManagementPageViewModel>();
+        services.AddTransient<WEMP.PackageManagement.UI.PackageManagementPage>();
+
         // 游戏模式模块
         services.AddSingleton<WEMP.GameMode.Detection.IGameDetector, WEMP.GameMode.Detection.GameLibraryDetector>();
         services.AddSingleton<WEMP.GameMode.Services.IGameStateSwitcher, WEMP.GameMode.Services.SystemStateSwitcher>();

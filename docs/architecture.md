@@ -36,7 +36,7 @@ IModule
 | Optimization（系统优化） | 知识库驱动的一键/自定义优化，备份-应用-回滚三阶段，操作审计 | Core、Infrastructure |
 | GameMode（游戏模式） | 游戏会话检测（自动/手动）与系统状态切换，会话记录持久化 | Core、Optimization、Infrastructure |
 | DevEnvironment（开发环境） | YAML 模板化工具链部署 | Core、PackageManagement |
-| PackageManagement（软件包管理） | winget/choco/scoop 聚合 | Core |
+| PackageManagement（软件包管理） | winget 适配层与软件同步、安装/卸载/升级、软件分组批量操作，记录写入 package_operations | Core、Infrastructure |
 | Backup（备份恢复，规划） | 还原点、文件增量备份 | Core |
 | Logging（日志中心） | 审计日志、事件聚合、异常检测 | Core |
 
