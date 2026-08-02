@@ -1,0 +1,134 @@
+<UserControl x:Class="WEMP.Logging.UI.LoggingPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="900">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+            <TextBlock Text="日志中心" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="#666666" />
+        </DockPanel>
+
+        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="#666666" FontSize="12"
+                   Text="审计日志查询与统计、Windows 事件日志聚合、异常规则扫描（崩溃 / 意外关机 / 错误风暴 / 审计失败率）。" />
+
+        <TabControl Grid.Row="2" Margin="0,12,0,0">
+
+            <!-- 审计日志 -->
+            <TabItem Header="审计日志">
+                <DockPanel Margin="8">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button Content="查询" Padding="12,4" DockPanel.Dock="Right" Command="{Binding SearchAuditsCommand}" />
+                        <ComboBox Width="140" Margin="0,0,8,0" ItemsSource="{Binding Modules}"
+                                  SelectedItem="{Binding SelectedModule}" DockPanel.Dock="Right" />
+                        <ComboBox Width="90" Margin="0,0,8,0" ItemsSource="{Binding Levels}"
+                                  SelectedItem="{Binding SelectedLevel}" DockPanel.Dock="Right" />
+                        <TextBox Width="220" Text="{Binding SearchKeyword, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center" ToolTip="搜索动作 / 目标 / 消息" />
+                    </DockPanel>
+
+                    <ListBox ItemsSource="{Binding AuditItems}" BorderBrush="#DDDDDD">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="80" />
+                                        <ColumnDefinition Width="140" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                               Text="{Binding Timestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+                                    <TextBlock Grid.Column="1" FontSize="12" Text="{Binding Module}" />
+                                    <TextBlock Grid.Column="2" FontSize="12" Foreground="#666666" Text="{Binding Level}" />
+                                    <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Text="{Binding Action}" />
+                                    <TextBlock Grid.Column="4" FontSize="12" Text="{Binding Result}" />
+                                    <TextBlock Grid.Column="5" FontSize="12" Foreground="#666666"
+                                               Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
+            <!-- 系统事件 -->
+            <TabItem Header="系统事件">
+                <DockPanel Margin="8">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button Content="拉取最近 24 小时事件" Padding="12,4" DockPanel.Dock="Right"
+                                Command="{Binding AggregateEventsCommand}" />
+                        <TextBlock Text="Windows Application / System 事件日志聚合（自动去重）" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ListBox ItemsSource="{Binding EventItems}" BorderBrush="#DDDDDD">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="50" />
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                               Text="{Binding EventTime, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+                                    <TextBlock Grid.Column="1" FontSize="12" Text="{Binding Level}" />
+                                    <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Text="{Binding Provider}" />
+                                    <TextBlock Grid.Column="3" FontSize="12" Text="{Binding EventId}" />
+                                    <TextBlock Grid.Column="4" FontSize="12" Foreground="#666666"
+                                               Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
+            <!-- 异常检测 -->
+            <TabItem Header="异常检测">
+                <DockPanel Margin="8">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Content="执行异常扫描" Padding="12,4" Command="{Binding ScanAnomaliesCommand}" />
+                            <Button Content="标记已解决" Padding="12,4" Margin="8,0,0,0"
+                                    Command="{Binding ResolveAnomalyCommand}" CommandParameter="{Binding SelectedAnomaly}" />
+                        </StackPanel>
+                        <TextBlock Text="规则：应用崩溃 / 意外关机 / 单源错误风暴 / 审计失败率过高（24h 去重）" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ListBox ItemsSource="{Binding AnomalyItems}" SelectedItem="{Binding SelectedAnomaly}" BorderBrush="#DDDDDD">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                               Text="{Binding DetectedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" />
+                                    <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Text="{Binding Severity}" />
+                                    <TextBlock Grid.Column="2" FontSize="12" Text="{Binding RuleCode}" />
+                                    <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold"
+                                               Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

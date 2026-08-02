@@ -15,6 +15,7 @@
 - 游戏模式模块（WEMP.GameMode）：前台窗口轮询检测游戏会话，进入自动切换高性能电源并释放后台进程、退出自动恢复；会话计时与历史持久化到 game_sessions
 - 软件包管理模块（WEMP.PackageManagement）：winget 适配层（探测/列表/升级/安装/卸载）、已装软件同步到 installed_software、一键升级与操作记录持久化到 package_operations、软件分组（SoftwareGroup/SoftwareGroupItem）批量安装
 - 开发环境模块（WEMP.DevEnvironment）：YAML 模板库（内置 Node.js / Python 模板）与一键部署流水线（工具安装 → 环境变量 → 配置文件 → 验证 → 快照），部署日志与快照持久化到 env_deploy_logs / env_snapshots，支持重新验证与回滚
+- 日志中心模块（WEMP.Logging）：审计日志查询（模块/级别/关键字过滤、分页）与统计聚合、Windows Application/System 事件日志聚合（去重入库 system_events）、异常规则扫描（应用崩溃 / 意外关机 / 单源错误风暴 / 审计失败率过高，24h 去重写 log_anomalies）与异常处置
 - 数据库迁移：`AddGameSessions`（新增 game_sessions 表）
 - 数据库迁移：`AddDevEnvSnapshot`（system_snapshots 增加 dev_env_json）
 

@@ -145,6 +145,14 @@ public partial class App : Application
         services.AddTransient<WEMP.DevEnvironment.UI.DevEnvironmentPageViewModel>();
         services.AddTransient<WEMP.DevEnvironment.UI.DevEnvironmentPage>();
 
+        // 日志中心模块
+        services.AddSingleton<WEMP.Logging.Services.IAuditLogService, WEMP.Logging.Services.AuditLogService>();
+        services.AddSingleton<WEMP.Logging.Services.IEventSource, WEMP.Logging.Services.WindowsEventLogSource>();
+        services.AddSingleton<WEMP.Logging.Services.IAnomalyDetector, WEMP.Logging.Services.AnomalyDetector>();
+        services.AddSingleton<WEMP.Logging.Services.ILoggingService, WEMP.Logging.Services.LoggingService>();
+        services.AddTransient<WEMP.Logging.UI.LoggingPageViewModel>();
+        services.AddTransient<WEMP.Logging.UI.LoggingPage>();
+
         // 游戏模式模块
         services.AddSingleton<WEMP.GameMode.Detection.IGameDetector, WEMP.GameMode.Detection.GameLibraryDetector>();
         services.AddSingleton<WEMP.GameMode.Services.IGameStateSwitcher, WEMP.GameMode.Services.SystemStateSwitcher>();
