@@ -114,6 +114,20 @@ public partial class App : Application
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoViewModel>();
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoPage>();
 
+        // 系统优化模块
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.RegistryAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.ServiceAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.StartupAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.NetworkAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.DiskAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.PowerAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.MemoryAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.OptimizationActionFactory>();
+        services.AddSingleton<WEMP.Optimization.Services.IOptimizationService, WEMP.Optimization.Services.OptimizationService>();
+        services.AddSingleton<WEMP.Optimization.Seeding.OptimizationSeedService>();
+        services.AddTransient<WEMP.Optimization.UI.OptimizationPageViewModel>();
+        services.AddTransient<WEMP.Optimization.UI.OptimizationPage>();
+
         // 其余模块业务页面在业务开发阶段注册
     }
 }

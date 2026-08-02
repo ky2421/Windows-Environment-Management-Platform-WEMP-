@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\WEMP.Core\WEMP.Core.csproj" />
     <ProjectReference Include="..\..\src\WEMP.Infrastructure\WEMP.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\WEMP.SystemInfo\WEMP.SystemInfo.csproj" />
+    <ProjectReference Include="..\..\src\WEMP.Optimization\WEMP.Optimization.csproj" />
   </ItemGroup>
 
   <ItemGroup>

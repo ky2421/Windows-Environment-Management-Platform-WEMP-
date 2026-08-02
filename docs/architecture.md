@@ -33,7 +33,7 @@ IModule
 | 模块 | 职责 | 主要依赖 |
 |---|---|---|
 | SystemInfo（系统检测） | 硬件/系统/进程/开发环境信息采集与快照持久化 | Windows API、WMI、Infrastructure |
-| Optimization（系统优化） | 优化知识库驱动的一键优化 | Core |
+| Optimization（系统优化） | 知识库驱动的一键/自定义优化，备份-应用-回滚三阶段，操作审计 | Core、Infrastructure |
 | GameMode（游戏模式） | 游戏会话检测与系统状态切换 | Core、Optimization |
 | DevEnvironment（开发环境） | YAML 模板化工具链部署 | Core、PackageManagement |
 | PackageManagement（软件包管理） | winget/choco/scoop 聚合 | Core |
