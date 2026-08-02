@@ -1,0 +1,149 @@
+{
+  "kbVersion": 1,
+  "items": [
+    {
+      "code": "svc.diagtrack",
+      "category": "service",
+      "name": "禁用 DiagTrack 遥测服务",
+      "principle": "Connected User Experiences and Telemetry 持续收集并上传遥测数据，占用少量 CPU 与网络带宽；禁用可减少隐私泄露与静默流量。",
+      "risk": "极低；极个别系统反馈影响 Windows Update，属个例。",
+      "recommendation": "required",
+      "isRecoverable": true,
+      "targetJson": "{\"serviceName\":\"DiagTrack\"}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "svc.print-spooler",
+      "category": "service",
+      "name": "禁用 Print Spooler（无打印机）",
+      "principle": "打印队列服务同时是 PrintNightmare 等已知漏洞的攻击面；无打印机的机器禁用无副作用。",
+      "risk": "有打印机或依赖打印功能的软件不可用。",
+      "recommendation": "optional",
+      "isRecoverable": true,
+      "targetJson": "{\"serviceName\":\"Spooler\"}",
+      "enabled": true,
+      "sortOrder": 20
+    },
+    {
+      "code": "svc.xbox-services",
+      "category": "service",
+      "name": "禁用 Xbox 相关服务",
+      "principle": "XblAuthManager、XblGameSave、XboxNetApiSvc 等服务仅为 Xbox 生态与 UWP 游戏提供支持，非玩家机器纯属占用。",
+      "risk": "Xbox 应用与部分 UWP 游戏无法使用。",
+      "recommendation": "optional",
+      "isRecoverable": true,
+      "targetJson": "{\"services\":[\"XblAuthManager\",\"XblGameSave\",\"XboxNetApiSvc\"]}",
+      "enabled": true,
+      "sortOrder": 30
+    },
+    {
+      "code": "reg.wer",
+      "category": "registry",
+      "name": "关闭 Windows 错误报告",
+      "principle": "禁用 WER 可减少崩溃弹窗与后台上报，避免故障时反复弹窗。",
+      "risk": "丢失崩溃诊断数据，排障困难。",
+      "recommendation": "required",
+      "isRecoverable": true,
+      "targetJson": "{\"key\":\"HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\Windows Error Reporting\",\"valueName\":\"Disabled\",\"valueData\":1}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "reg.telemetry",
+      "category": "registry",
+      "name": "关闭系统遥测",
+      "principle": "将诊断数据级别设为最低，减少发往微软的遥测流量。",
+      "risk": "极低。",
+      "recommendation": "required",
+      "isRecoverable": true,
+      "targetJson": "{\"key\":\"HKLM\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\DataCollection\",\"valueName\":\"AllowTelemetry\",\"valueData\":0}",
+      "enabled": true,
+      "sortOrder": 20
+    },
+    {
+      "code": "reg.gamedvr",
+      "category": "game",
+      "name": "关闭 GameDVR 后台录制",
+      "principle": "消除系统后台录像对帧率的随机拖累，部分游戏帧率与稳定性明显改善。",
+      "risk": "无；失去系统自带录屏功能。",
+      "recommendation": "required",
+      "isRecoverable": true,
+      "targetJson": "{\"key\":\"HKCU\\\\System\\\\GameConfigStore\",\"valueName\":\"GameDVR_Enabled\",\"valueData\":0}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "startup.oem-bloat",
+      "category": "startup",
+      "name": "禁用 OEM 预装软件自启",
+      "principle": "厂商管家/更新器类启动项常驻后台，占用内存与 CPU；禁用缩短开机流程。",
+      "risk": "可能失去厂商 OTA 更新提醒；驱动类建议保留。",
+      "recommendation": "required",
+      "isRecoverable": true,
+      "targetJson": "{}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "network.dns",
+      "category": "network",
+      "name": "更换 DNS 为公共 DNS",
+      "principle": "公共 DNS（1.1.1.1/8.8.8.8）通常比 ISP DNS 解析更快，降低域名解析延迟。",
+      "risk": "内网域名（NAS、公司域名）可能解析异常，需加白名单。",
+      "recommendation": "optional",
+      "isRecoverable": true,
+      "targetJson": "{\"dns\":[\"1.1.1.1\",\"8.8.8.8\"]}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "disk.cleanup",
+      "category": "disk",
+      "name": "清理临时与缓存文件",
+      "principle": "清除临时文件、Windows Update 缓存、缩略图等冗余数据，释放磁盘空间。",
+      "risk": "极小；部分浏览器登录态可能被清。",
+      "recommendation": "required",
+      "isRecoverable": false,
+      "targetJson": "{}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "disk.hiberfil",
+      "category": "disk",
+      "name": "关闭休眠释放 hiberfil.sys",
+      "principle": "休眠文件占内存容量约 40%；从不休眠的机器可关闭释放空间。",
+      "risk": "失去休眠与快速启动功能。",
+      "recommendation": "optional",
+      "isRecoverable": true,
+      "targetJson": "{\"command\":\"powercfg /h off\"}",
+      "enabled": true,
+      "sortOrder": 20
+    },
+    {
+      "code": "power.high-performance",
+      "category": "power",
+      "name": "切换高性能电源计划",
+      "principle": "阻止 CPU 降频与核心休眠，提升持续负载性能（台式游戏机受益明显）。",
+      "risk": "笔记本续航下降、发热增大。",
+      "recommendation": "optional",
+      "isRecoverable": true,
+      "targetJson": "{\"scheme\":\"high-performance\"}",
+      "enabled": true,
+      "sortOrder": 10
+    },
+    {
+      "code": "memory.background-apps",
+      "category": "memory",
+      "name": "关闭非必要后台进程与应用",
+      "principle": "减少后台常驻进程的真实内存占用与磁盘活动，是最有效的软件层内存优化。",
+      "risk": "误关关键应用会影响其功能。",
+      "recommendation": "required",
+      "isRecoverable": true,
+      "targetJson": "{}",
+      "enabled": true,
+      "sortOrder": 10
+    }
+  ]
+}

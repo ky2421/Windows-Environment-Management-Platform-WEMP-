@@ -1,0 +1,71 @@
+# === Build results ===
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]inaries/
+[Ll]og[s]/
+
+# === .NET ===
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.rsproj
+*.tmp_proj
+*.nupkg
+*.snupkg
+*.nuspec
+.nuget/
+packages/
+*.nuget.props
+*.nuget.targets
+
+# NuGet packages already committed to repo
+# *packages*
+
+# MSTest test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# xUnit
+*.trx
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# === WEMP local data ===
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# === Rider / VS Code ===
+.idea/
+*.sln.iml
+.vs/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# === JS / misc (dev tools caches) ===
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

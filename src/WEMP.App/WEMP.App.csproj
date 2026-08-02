@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WEMP.Backup\WEMP.Backup.csproj" />
+    <ProjectReference Include="..\WEMP.Core\WEMP.Core.csproj" />
+    <ProjectReference Include="..\WEMP.DevEnvironment\WEMP.DevEnvironment.csproj" />
+    <ProjectReference Include="..\WEMP.GameMode\WEMP.GameMode.csproj" />
+    <ProjectReference Include="..\WEMP.Infrastructure\WEMP.Infrastructure.csproj" />
+    <ProjectReference Include="..\WEMP.Logging\WEMP.Logging.csproj" />
+    <ProjectReference Include="..\WEMP.Optimization\WEMP.Optimization.csproj" />
+    <ProjectReference Include="..\WEMP.PackageManagement\WEMP.PackageManagement.csproj" />
+    <ProjectReference Include="..\WEMP.SystemInfo\WEMP.SystemInfo.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

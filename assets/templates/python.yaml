@@ -1,0 +1,41 @@
+# 环境模板：Python 开发环境
+
+id: python-312
+name: Python 开发环境
+description: Python 3.12 + pip 镜像 + 常用开发工具（ruff / poetry / uv）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: python
+    version: "3.12"
+    versionManager: direct    # direct / pyenv / conda
+    optional: false
+  - name: uv
+    optional: true
+  - name: poetry
+    optional: true
+  - name: ruff
+    optional: true
+
+environmentVariables:
+  - name: PIP_INDEX_URL
+    value: "https://pypi.tuna.tsinghua.edu.cn/simple"
+    scope: user
+    overwrite: false
+
+config:
+  files:
+    - path: "%APPDATA%\\pip\\pip.ini"
+      strategy: merge
+      values:
+        global.index-url: "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+validation:
+  commands:
+    - command: "python --version"
+      expected: "Python 3.12.*"
+    - command: "pip --version"
+      expected: "pip 2[0-9].*"
+
+prerequisites: []

@@ -1,0 +1,48 @@
+# 环境模板：Node.js 开发环境
+
+# 模板结构：基本信息 + 工具清单 + 环境变量 + 配置 + 验证
+id: nodejs-20
+name: Node.js 开发环境
+description: Node.js LTS + 常用全局工具（yarn / pnpm / typescript）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: node
+    version: "20"            # LTS 主版本，由版本管理器解析
+    versionManager: fnm       # fnm / nvm-windows / direct
+    optional: false
+  - name: yarn
+    optional: true
+  - name: pnpm
+    optional: true
+  - name: typescript
+    optional: true
+
+environmentVariables:
+  - name: NODE_HOME
+    value: "{{node.installDir}}"
+    scope: user
+    overwrite: false
+  - name: NPM_CONFIG_PREFIX
+    value: "%APPDATA%\\npm"
+    scope: user
+    overwrite: false
+
+config:
+  files:
+    - path: "%USERPROFILE%\\.npmrc"
+      strategy: merge        # merge / overwrite
+      values:
+        registry: "https://registry.npmmirror.com"
+
+validation:
+  commands:
+    - command: "node --version"
+      expected: "v20.*"
+    - command: "npm --version"
+      expected: "10.*"
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"
