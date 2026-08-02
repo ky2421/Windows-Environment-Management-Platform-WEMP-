@@ -136,6 +136,15 @@ public partial class App : Application
         services.AddTransient<WEMP.PackageManagement.UI.PackageManagementPageViewModel>();
         services.AddTransient<WEMP.PackageManagement.UI.PackageManagementPage>();
 
+        // 开发环境模块
+        services.AddSingleton<WEMP.DevEnvironment.Services.IToolInstaller, WEMP.DevEnvironment.Services.WingetToolInstaller>();
+        services.AddSingleton<WEMP.DevEnvironment.Services.IEnvironmentVariableService, WEMP.DevEnvironment.Services.EnvironmentVariableService>();
+        services.AddSingleton<WEMP.DevEnvironment.Services.IConfigFileWriter, WEMP.DevEnvironment.Services.ConfigFileWriter>();
+        services.AddSingleton<WEMP.DevEnvironment.Services.IToolValidator, WEMP.DevEnvironment.Services.CommandValidator>();
+        services.AddSingleton<WEMP.DevEnvironment.Services.IDevEnvironmentService, WEMP.DevEnvironment.Services.DevEnvironmentService>();
+        services.AddTransient<WEMP.DevEnvironment.UI.DevEnvironmentPageViewModel>();
+        services.AddTransient<WEMP.DevEnvironment.UI.DevEnvironmentPage>();
+
         // 游戏模式模块
         services.AddSingleton<WEMP.GameMode.Detection.IGameDetector, WEMP.GameMode.Detection.GameLibraryDetector>();
         services.AddSingleton<WEMP.GameMode.Services.IGameStateSwitcher, WEMP.GameMode.Services.SystemStateSwitcher>();

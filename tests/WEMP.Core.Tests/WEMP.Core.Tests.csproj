@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\src\WEMP.Optimization\WEMP.Optimization.csproj" />
     <ProjectReference Include="..\..\src\WEMP.GameMode\WEMP.GameMode.csproj" />
     <ProjectReference Include="..\..\src\WEMP.PackageManagement\WEMP.PackageManagement.csproj" />
+    <ProjectReference Include="..\..\src\WEMP.DevEnvironment\WEMP.DevEnvironment.csproj" />
   </ItemGroup>
 
   <ItemGroup>
