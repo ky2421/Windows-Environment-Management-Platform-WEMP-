@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\WEMP.PackageManagement\WEMP.PackageManagement.csproj" />
     <ProjectReference Include="..\..\src\WEMP.DevEnvironment\WEMP.DevEnvironment.csproj" />
     <ProjectReference Include="..\..\src\WEMP.Logging\WEMP.Logging.csproj" />
+    <ProjectReference Include="..\..\src\WEMP.Backup\WEMP.Backup.csproj" />
   </ItemGroup>
 
   <ItemGroup>

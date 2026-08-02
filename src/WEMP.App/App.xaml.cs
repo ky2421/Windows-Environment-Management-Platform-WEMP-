@@ -153,6 +153,11 @@ public partial class App : Application
         services.AddTransient<WEMP.Logging.UI.LoggingPageViewModel>();
         services.AddTransient<WEMP.Logging.UI.LoggingPage>();
 
+        // 备份恢复模块
+        services.AddSingleton<WEMP.Backup.Services.IBackupService, WEMP.Backup.Services.BackupService>();
+        services.AddTransient<WEMP.Backup.UI.BackupPageViewModel>();
+        services.AddTransient<WEMP.Backup.UI.BackupPage>();
+
         // 游戏模式模块
         services.AddSingleton<WEMP.GameMode.Detection.IGameDetector, WEMP.GameMode.Detection.GameLibraryDetector>();
         services.AddSingleton<WEMP.GameMode.Services.IGameStateSwitcher, WEMP.GameMode.Services.SystemStateSwitcher>();

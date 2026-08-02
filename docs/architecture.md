@@ -38,7 +38,7 @@ IModule
 | PackageManagement（软件包管理） | winget 适配层与软件同步、安装/卸载/升级、软件分组批量操作，记录写入 package_operations | Core、Infrastructure |
 | DevEnvironment（开发环境） | YAML 模板化工具链部署（工具安装/环境变量/配置文件/验证/快照/回滚），记录写入 env_deploy_logs | Core、PackageManagement、Infrastructure |
 | Logging（日志中心） | 审计日志查询与统计、Windows 事件日志聚合（system_events）、异常规则扫描（log_anomalies）与处置 | Core、Infrastructure |
-| Backup（备份恢复，规划） | 还原点、文件增量备份 | Core |
+| Backup（备份恢复） | 任务化全量/增量文件备份（glob 过滤、自动备份），按记录还原 | Core、Infrastructure |
 
 ## 5. 数据层
 

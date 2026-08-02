@@ -1,0 +1,181 @@
+<UserControl x:Class="WEMP.Backup.UI.BackupPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="900">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0">
+            <TextBlock Text="备份恢复" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="#666666" />
+        </DockPanel>
+
+        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="#666666" FontSize="12"
+                   Text="任务化全量 / 增量文件备份（glob 过滤、到期自动备份），按记录还原。备份文件存放于任务目标目录。" />
+
+        <TabControl Grid.Row="2" Margin="0,12,0,0">
+
+            <!-- 备份任务 -->
+            <TabItem Header="备份任务">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="320" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="立即备份" Padding="12,4" Command="{Binding RunBackupCommand}" />
+                            <Button Content="启用/停用" Padding="12,4" Margin="8,0,0,0" Command="{Binding ToggleTaskCommand}" />
+                            <Button Content="删除任务" Padding="12,4" Margin="8,0,0,0" Command="{Binding DeleteTaskCommand}" />
+                        </StackPanel>
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}"
+                                 BorderBrush="#DDDDDD" SelectionChanged="OnTaskSelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="2,4">
+                                        <DockPanel>
+                                            <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                                            <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#888888"
+                                                       Text="{Binding Mode}" />
+                                        </DockPanel>
+                                        <TextBlock FontSize="11" Foreground="#666666" Text="{Binding SourcePath}" />
+                                        <TextBlock FontSize="11" Foreground="#999999" Text="{Binding DestinationPath}" />
+                                        <TextBlock FontSize="11" Foreground="#999999">
+                                            <Run Text="上次备份：" />
+                                            <Run Text="{Binding LastBackupAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" />
+                                            <Run Text="  自动：" />
+                                            <Run Text="{Binding AutoBackup}" />
+                                            <Run Text="  启用：" />
+                                            <Run Text="{Binding Enabled}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+
+                    <Grid Grid.Column="2">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="任务配置" Margin="0,0,0,8" />
+                            <TextBlock Text="名称" FontSize="12" Foreground="#666666" />
+                            <TextBox Text="{Binding Name}" Margin="0,2,0,8" />
+                            <TextBlock Text="源路径（文件或目录）" FontSize="12" Foreground="#666666" />
+                            <DockPanel Margin="0,2,0,8">
+                                <Button Content="浏览…" Padding="10,3" DockPanel.Dock="Right" Click="OnBrowseSource" />
+                                <TextBox Text="{Binding SourcePath}" />
+                            </DockPanel>
+                            <TextBlock Text="目标目录" FontSize="12" Foreground="#666666" />
+                            <DockPanel Margin="0,2,0,8">
+                                <Button Content="浏览…" Padding="10,3" DockPanel.Dock="Right" Click="OnBrowseDestination" />
+                                <TextBox Text="{Binding DestinationPath}" />
+                            </DockPanel>
+                            <TextBlock Text="备份模式" FontSize="12" Foreground="#666666" />
+                            <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" Margin="0,2,0,8" />
+                            <TextBlock Text="包含过滤（逗号分隔 glob，留空 = 全部）" FontSize="12" Foreground="#666666" />
+                            <TextBox Text="{Binding IncludePatterns}" Margin="0,2,0,8" />
+                            <TextBlock Text="排除过滤（逗号分隔 glob）" FontSize="12" Foreground="#666666" />
+                            <TextBox Text="{Binding ExcludePatterns}" Margin="0,2,0,8" />
+                            <CheckBox Content="启用自动备份" IsChecked="{Binding AutoBackup}" Margin="0,4,0,4" />
+                            <DockPanel Margin="0,2,0,8">
+                                <TextBlock Text="间隔（小时）" FontSize="12" Foreground="#666666" VerticalAlignment="Center" />
+                                <TextBox Width="80" Text="{Binding AutoIntervalHours}" DockPanel.Dock="Right" />
+                            </DockPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Button Content="保存" Padding="16,5" Command="{Binding SaveTaskCommand}" />
+                                <Button Content="编辑选中" Padding="16,5" Margin="8,0,0,0" Command="{Binding EditTaskCommand}" />
+                                <Button Content="清空" Padding="16,5" Margin="8,0,0,0" Command="{Binding ResetFormCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- 备份记录 -->
+            <TabItem Header="备份记录">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Content="还原" Padding="12,4" Command="{Binding RestoreCommand}" />
+                            <Button Content="删除记录" Padding="12,4" Margin="8,0,0,0" Command="{Binding DeleteRecordCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="任务：" VerticalAlignment="Center" />
+                        <ComboBox Width="220" Margin="8,0,0,0" ItemsSource="{Binding Tasks}"
+                                  DisplayMemberPath="Name" SelectedItem="{Binding SelectedTask}"
+                                  SelectionChanged="OnTaskSelectionChanged" />
+                    </DockPanel>
+
+                    <ListBox Grid.Row="1" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}"
+                             BorderBrush="#DDDDDD" SelectionChanged="OnRecordSelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="80" />
+                                        <ColumnDefinition Width="60" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="70" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                               Text="{Binding StartedAt, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+                                    <TextBlock Grid.Column="1" FontSize="12" Text="{Binding BackupType}" />
+                                    <TextBlock Grid.Column="2" FontSize="12" Text="{Binding FileCount}" />
+                                    <TextBlock Grid.Column="3" FontSize="12" Text="{Binding TotalBytes, StringFormat={}{0:N0} B}" />
+                                    <TextBlock Grid.Column="4" FontSize="12" FontWeight="SemiBold" Text="{Binding Status}" />
+                                    <TextBlock Grid.Column="5" FontSize="12" Foreground="#666666"
+                                               Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Grid.Row="2" Margin="0,10,0,4" FontSize="12" Foreground="#666666"
+                               Text="记录文件明细（相对路径 / 大小 / 修改时间 / 动作）" />
+
+                    <ListBox Grid.Row="3" ItemsSource="{Binding RecordEntries}" BorderBrush="#DDDDDD">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="60" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" FontSize="12" Text="{Binding RelativePath}" />
+                                    <TextBlock Grid.Column="1" FontSize="12" Foreground="#888888"
+                                               Text="{Binding FileSize, StringFormat={}{0:N0} B}" />
+                                    <TextBlock Grid.Column="2" FontSize="12" Foreground="#888888"
+                                               Text="{Binding ModifiedAt, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
+                                    <TextBlock Grid.Column="3" FontSize="12" Text="{Binding Action}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

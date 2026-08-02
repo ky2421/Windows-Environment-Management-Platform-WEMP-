@@ -7,7 +7,7 @@ WEMP 使用 SQLite 单库存储（EF Core 8 管理）。
 - 默认路径：`%LOCALAPPDATA%\WEMP\wemp.db`
 - 连接字符串：`WEMP.Infrastructure.Data.WempDatabase.CreateConnectionString()`（可覆盖）
 
-## 表清单（19 张核心表）
+## 表清单（22 张核心表）
 
 | 分类 | 表 |
 |---|---|
@@ -17,6 +17,7 @@ WEMP 使用 SQLite 单库存储（EF Core 8 管理）。
 | 日志 | `audit_logs`、`system_events`、`log_anomalies` |
 | 软件列表 | `installed_software`、`software_history`、`software_groups`、`software_group_items`、`package_operations`、`package_sources` |
 | 开发环境 | `env_templates`、`env_instances`、`env_tools`、`env_envvars`、`env_snapshots`、`env_deploy_logs` |
+| 备份恢复 | `backup_tasks`、`backup_records`、`backup_file_entries` |
 
 ## 迁移与种子
 
