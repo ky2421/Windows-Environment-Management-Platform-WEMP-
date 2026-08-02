@@ -1,0 +1,28 @@
+# 统一换行风格：文本文件按内容自动判定
+* text=auto
+
+# Windows 原生文件使用 CRLF
+*.cs    text eol=crlf
+*.xaml  text eol=crlf
+*.csproj text eol=crlf
+*.sln   text eol=crlf
+*.props text eol=crlf
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# 文档与跨平台文件使用 LF
+*.md    text eol=lf
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.sh    text eol=lf
+*.gitignore text eol=lf
+*.editorconfig text eol=lf
+LICENSE text eol=lf
+
+# 二进制文件不转换
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.db    binary
