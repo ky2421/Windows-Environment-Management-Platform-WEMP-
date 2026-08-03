@@ -50,7 +50,7 @@ public class SoftwareGroupServiceTests
         db.Database.EnsureCreated();
 
         var packages = new FakePackageManager();
-        return (db, new SoftwareGroupService(db, packages), packages);
+        return (db, new SoftwareGroupService(new TestDbFactory(connection), packages), packages);
     }
 
     [Fact]

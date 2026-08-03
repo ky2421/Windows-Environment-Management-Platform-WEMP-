@@ -6,6 +6,10 @@
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="900">
 
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -14,11 +18,15 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0">
-            <TextBlock Text="备份恢复" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
-            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="#666666" />
+            <TextBlock Text="备份恢复" Style="{StaticResource PageTitleStyle}" VerticalAlignment="Center" />
+            <TextBlock Text="部分备份/恢复操作需要管理员权限，非管理员运行时可能失败。"
+                       FontSize="12" Foreground="{DynamicResource WarningBrush}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       Visibility="{Binding ShowPermissionHint, Converter={StaticResource BoolToVis}}" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
         </DockPanel>
 
-        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="#666666" FontSize="12"
+        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
                    Text="任务化全量 / 增量文件备份（glob 过滤、到期自动备份），按记录还原。备份文件存放于任务目标目录。" />
 
         <TabControl Grid.Row="2" Margin="0,12,0,0">
@@ -38,23 +46,25 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button Content="立即备份" Padding="12,4" Command="{Binding RunBackupCommand}" />
+                            <Button Style="{StaticResource AccentButtonStyle}" Content="立即备份" Padding="12,4" Command="{Binding RunBackupCommand}" />
                             <Button Content="启用/停用" Padding="12,4" Margin="8,0,0,0" Command="{Binding ToggleTaskCommand}" />
-                            <Button Content="删除任务" Padding="12,4" Margin="8,0,0,0" Command="{Binding DeleteTaskCommand}" />
+                            <Button Style="{StaticResource DangerButtonStyle}" Content="删除任务" Padding="12,4" Margin="8,0,0,0" Command="{Binding DeleteTaskCommand}" />
                         </StackPanel>
                         <ListBox Grid.Row="1" ItemsSource="{Binding Tasks}" SelectedItem="{Binding SelectedTask}"
-                                 BorderBrush="#DDDDDD" SelectionChanged="OnTaskSelectionChanged">
+                                 BorderBrush="{DynamicResource ControlBorderBrush}" SelectionChanged="OnTaskSelectionChanged">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="2,4">
                                         <DockPanel>
                                             <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
-                                            <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#888888"
+                                            <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"
                                                        Text="{Binding Mode}" />
                                         </DockPanel>
-                                        <TextBlock FontSize="11" Foreground="#666666" Text="{Binding SourcePath}" />
-                                        <TextBlock FontSize="11" Foreground="#999999" Text="{Binding DestinationPath}" />
-                                        <TextBlock FontSize="11" Foreground="#999999">
+                                        <TextBlock FontSize="11" FontFamily="{StaticResource MonoFont}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding SourcePath}" />
+                                        <TextBlock FontSize="11" FontFamily="{StaticResource MonoFont}"
+                                                   Foreground="{DynamicResource TextTertiaryBrush}" Text="{Binding DestinationPath}" />
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}">
                                             <Run Text="上次备份：" />
                                             <Run Text="{Binding LastBackupAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" />
                                             <Run Text="  自动：" />
@@ -71,27 +81,27 @@
                     <Grid Grid.Column="2">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="任务配置" Margin="0,0,0,8" />
-                            <TextBlock Text="名称" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="名称" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBox Text="{Binding Name}" Margin="0,2,0,8" />
-                            <TextBlock Text="源路径（文件或目录）" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="源路径（文件或目录）" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <DockPanel Margin="0,2,0,8">
                                 <Button Content="浏览…" Padding="10,3" DockPanel.Dock="Right" Click="OnBrowseSource" />
                                 <TextBox Text="{Binding SourcePath}" />
                             </DockPanel>
-                            <TextBlock Text="目标目录" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="目标目录" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <DockPanel Margin="0,2,0,8">
                                 <Button Content="浏览…" Padding="10,3" DockPanel.Dock="Right" Click="OnBrowseDestination" />
                                 <TextBox Text="{Binding DestinationPath}" />
                             </DockPanel>
-                            <TextBlock Text="备份模式" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="备份模式" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}" Margin="0,2,0,8" />
-                            <TextBlock Text="包含过滤（逗号分隔 glob，留空 = 全部）" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="包含过滤（逗号分隔 glob，留空 = 全部）" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBox Text="{Binding IncludePatterns}" Margin="0,2,0,8" />
-                            <TextBlock Text="排除过滤（逗号分隔 glob）" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="排除过滤（逗号分隔 glob）" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
                             <TextBox Text="{Binding ExcludePatterns}" Margin="0,2,0,8" />
                             <CheckBox Content="启用自动备份" IsChecked="{Binding AutoBackup}" Margin="0,4,0,4" />
                             <DockPanel Margin="0,2,0,8">
-                                <TextBlock Text="间隔（小时）" FontSize="12" Foreground="#666666" VerticalAlignment="Center" />
+                                <TextBlock Text="间隔（小时）" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
                                 <TextBox Width="80" Text="{Binding AutoIntervalHours}" DockPanel.Dock="Right" />
                             </DockPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -117,7 +127,7 @@
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                             <Button Content="还原" Padding="12,4" Command="{Binding RestoreCommand}" />
-                            <Button Content="删除记录" Padding="12,4" Margin="8,0,0,0" Command="{Binding DeleteRecordCommand}" />
+                            <Button Style="{StaticResource DangerButtonStyle}" Content="删除记录" Padding="12,4" Margin="8,0,0,0" Command="{Binding DeleteRecordCommand}" />
                         </StackPanel>
                         <TextBlock Text="任务：" VerticalAlignment="Center" />
                         <ComboBox Width="220" Margin="8,0,0,0" ItemsSource="{Binding Tasks}"
@@ -126,7 +136,7 @@
                     </DockPanel>
 
                     <ListBox Grid.Row="1" ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}"
-                             BorderBrush="#DDDDDD" SelectionChanged="OnRecordSelectionChanged">
+                             BorderBrush="{DynamicResource ControlBorderBrush}" SelectionChanged="OnRecordSelectionChanged">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,3">
@@ -138,23 +148,24 @@
                                         <ColumnDefinition Width="70" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                    <TextBlock Grid.Column="0" FontSize="12" FontFamily="{StaticResource MonoFont}"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
                                                Text="{Binding StartedAt, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
                                     <TextBlock Grid.Column="1" FontSize="12" Text="{Binding BackupType}" />
                                     <TextBlock Grid.Column="2" FontSize="12" Text="{Binding FileCount}" />
                                     <TextBlock Grid.Column="3" FontSize="12" Text="{Binding TotalBytes, StringFormat={}{0:N0} B}" />
                                     <TextBlock Grid.Column="4" FontSize="12" FontWeight="SemiBold" Text="{Binding Status}" />
-                                    <TextBlock Grid.Column="5" FontSize="12" Foreground="#666666"
+                                    <TextBlock Grid.Column="5" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                                Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <TextBlock Grid.Row="2" Margin="0,10,0,4" FontSize="12" Foreground="#666666"
+                    <TextBlock Grid.Row="2" Margin="0,10,0,4" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                Text="记录文件明细（相对路径 / 大小 / 修改时间 / 动作）" />
 
-                    <ListBox Grid.Row="3" ItemsSource="{Binding RecordEntries}" BorderBrush="#DDDDDD">
+                    <ListBox Grid.Row="3" ItemsSource="{Binding RecordEntries}" BorderBrush="{DynamicResource ControlBorderBrush}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,2">
@@ -164,12 +175,24 @@
                                         <ColumnDefinition Width="130" />
                                         <ColumnDefinition Width="60" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" FontSize="12" Text="{Binding RelativePath}" />
-                                    <TextBlock Grid.Column="1" FontSize="12" Foreground="#888888"
+                                    <TextBlock Grid.Column="0" FontSize="12" FontFamily="{StaticResource MonoFont}" Text="{Binding RelativePath}" />
+                                    <TextBlock Grid.Column="1" FontSize="12" FontFamily="{StaticResource MonoFont}" Foreground="{DynamicResource TextTertiaryBrush}"
                                                Text="{Binding FileSize, StringFormat={}{0:N0} B}" />
-                                    <TextBlock Grid.Column="2" FontSize="12" Foreground="#888888"
+                                    <TextBlock Grid.Column="2" FontSize="12" FontFamily="{StaticResource MonoFont}" Foreground="{DynamicResource TextTertiaryBrush}"
                                                Text="{Binding ModifiedAt, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
-                                    <TextBlock Grid.Column="3" FontSize="12" Text="{Binding Action}" />
+                                    <TextBlock Grid.Column="3" FontSize="12" Text="{Binding Action}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Action}" Value="deleted">
+                                                        <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                                        <Setter Property="TextDecorations" Value="Strikethrough" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

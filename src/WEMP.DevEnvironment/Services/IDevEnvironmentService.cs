@@ -17,8 +17,8 @@ public interface IDevEnvironmentService
     /// <summary>从内置模板目录种子模板库（幂等：已存在则更新内容）。</summary>
     Task<int> EnsureSeedAsync(string? templatesDirectory = null, CancellationToken cancellationToken = default);
 
-    /// <summary>按模板创建实例并执行部署流水线。</summary>
-    Task<EnvInstance> DeployAsync(long templateId, string? instanceName = null, CancellationToken cancellationToken = default);
+    /// <summary>按模板创建实例并执行部署流水线；<paramref name="selectedTools"/> 非空时仅安装其中列出的工具，<paramref name="progress"/> 用于回报部署进度。</summary>
+    Task<EnvInstance> DeployAsync(long templateId, string? instanceName = null, IEnumerable<string>? selectedTools = null, IProgress<Models.DeployProgressInfo>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>对实例重新执行验证命令。</summary>
     Task<ValidationResult> ValidateAsync(long instanceId, CancellationToken cancellationToken = default);

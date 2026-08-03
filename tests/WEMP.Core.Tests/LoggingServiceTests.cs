@@ -30,7 +30,8 @@ public class LoggingServiceTests
         db.Database.EnsureCreated();
 
         var source = new FakeEventSource();
-        var service = new LoggingService(db, new AuditLogService(db), source, new AnomalyDetector());
+        var factory = new TestDbFactory(connection);
+        var service = new LoggingService(factory, new AuditLogService(factory), source, new AnomalyDetector());
         return (db, service, source);
     }
 

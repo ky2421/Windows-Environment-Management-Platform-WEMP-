@@ -19,6 +19,9 @@ public static class ServiceCollectionExtensions
 
         var connection = connectionString ?? WempDatabase.CreateConnectionString();
         services.AddDbContext<WempDbContext>(options => options.UseSqlite(connection));
+        // 运行时多线程场景（页面、后台监测、定时任务）使用短生命周期上下文工厂，
+        // 避免 Singleton 服务共享同一 DbContext 导致的并发冲突
+        services.AddPooledDbContextFactory<WempDbContext>(options => options.UseSqlite(connection));
 
         return services;
     }

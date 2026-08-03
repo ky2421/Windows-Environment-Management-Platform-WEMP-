@@ -1,0 +1,25 @@
+# 环境模板：PostgreSQL
+
+id: postgresql
+name: PostgreSQL 数据库
+description: 开源关系型数据库（PostgreSQL 16）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: postgresql
+    version: "16"
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "psql --version"
+      expected: "psql \\(PostgreSQL\\) .*"
+
+prerequisites: []

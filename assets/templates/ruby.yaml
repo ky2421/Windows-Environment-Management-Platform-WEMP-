@@ -1,0 +1,31 @@
+# 环境模板：Ruby 开发环境
+
+id: ruby
+name: Ruby 开发环境
+description: Ruby 语言运行时 + RubyGems，支持 Ruby On Rails 框架开发
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: ruby
+    version: "3.2"
+    versionManager: direct
+    optional: false
+
+environmentVariables:
+  - name: GEM_HOME
+    value: "%USERPROFILE%\\gems"
+    scope: user
+    overwrite: false
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "ruby --version"
+      expected: "ruby 3\\..*"
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

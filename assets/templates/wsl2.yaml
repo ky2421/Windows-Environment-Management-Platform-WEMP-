@@ -1,0 +1,22 @@
+# 环境模板：WSL2 子系统
+
+id: wsl2
+name: WSL2 Linux 子系统
+description: Windows 上模拟 Linux 开发环境（WSL2 + Ubuntu），安装后需重启生效
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: wsl
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands: []
+
+prerequisites: []

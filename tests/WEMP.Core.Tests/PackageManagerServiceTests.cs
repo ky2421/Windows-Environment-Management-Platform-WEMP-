@@ -54,7 +54,7 @@ public class PackageManagerServiceTests
         db.Database.EnsureCreated();
 
         var provider = new FakeProvider();
-        return (db, new PackageManagerService(db, provider), provider);
+        return (db, new PackageManagerService(new TestDbFactory(connection), provider), provider);
     }
 
     [Fact]

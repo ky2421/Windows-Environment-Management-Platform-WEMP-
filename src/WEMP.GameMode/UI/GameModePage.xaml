@@ -15,15 +15,19 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- 标题与自动监测开关 -->
         <DockPanel Grid.Row="0">
-            <TextBlock Text="游戏模式"
-                       FontSize="22" FontWeight="Bold"
+            <TextBlock Text="游戏模式" Style="{StaticResource PageTitleStyle}"
                        VerticalAlignment="Center" />
+            <TextBlock Text="切换电源计划等系统设置需要管理员权限。"
+                       FontSize="12" Foreground="{DynamicResource WarningBrush}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       Visibility="{Binding ShowPermissionHint, Converter={StaticResource BoolToVis}}" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Text="自动监测" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <CheckBox IsChecked="{Binding IsAutoMonitor, Mode=TwoWay}" />
@@ -31,7 +35,7 @@
         </DockPanel>
 
         <!-- 当前会话卡片 -->
-        <Border Grid.Row="1" Margin="0,14,0,0" Padding="16" Background="#F5F6F8" CornerRadius="6">
+        <Border Grid.Row="1" Margin="0,14,0,0" Padding="16" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -40,11 +44,11 @@
 
                 <StackPanel>
                     <TextBlock Text="{Binding CurrentGame}" FontSize="20" FontWeight="Bold" />
-                    <TextBlock Text="{Binding Elapsed}" FontSize="14" Foreground="#666666" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding Elapsed}" FontSize="14" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="手动开始" Command="{Binding StartSessionCommand}"
+                    <Button Style="{StaticResource AccentButtonStyle}" Content="手动开始" Command="{Binding StartSessionCommand}"
                             Padding="12,6" Margin="0,0,8,0"
                             Visibility="{Binding HasSession, Converter={StaticResource BoolToVis}}" />
                     <Button Content="结束会话" Command="{Binding EndSessionCommand}"
@@ -54,16 +58,60 @@
         </Border>
 
         <!-- 说明 -->
-        <TextBlock Grid.Row="2" Margin="0,10,0,0" Foreground="#666666" FontSize="12"
+        <TextBlock Grid.Row="2" Margin="0,10,0,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
                    Text="开启自动监测后，当前台窗口命中游戏库时自动进入游戏模式（高性能电源 + 释放后台进程），离开游戏时自动恢复。" />
 
+        <!-- 自定义游戏库 -->
+        <Expander Grid.Row="3" Header="自定义游戏库" Margin="0,10,0,0">
+            <StackPanel Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.4*" />
+                        <ColumnDefinition Width="1.4*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding NewGameName, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="游戏显示名称" />
+                    <TextBox Grid.Column="1" Margin="8,0,0,0"
+                             Text="{Binding NewProcessName, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="进程名，如 valorant（可带 .exe）" />
+                    <Button Grid.Column="2" Margin="8,0,0,0" Content="添加" Padding="12,6"
+                            Command="{Binding AddCustomGameCommand}" />
+                </Grid>
+                <TextBlock Margin="0,6,0,0" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                           Text="内置库已覆盖常见游戏；未命中的游戏可在此添加进程名，检测时与内置库合并生效。" />
+                <TextBlock Text="{Binding LibraryStatus}" Margin="0,6,0,0" FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                <ItemsControl ItemsSource="{Binding CustomGames}" Margin="0,6,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,2,0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding ProcessName}" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="删除" Padding="8,2" FontSize="12"
+                                        Command="{Binding DataContext.RemoveCustomGameCommand, RelativeSource={RelativeSource AncestorType=Expander}}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Expander>
+
         <!-- 会话历史 -->
-        <TextBlock Grid.Row="3" Text="最近会话" FontWeight="Bold" Margin="0,16,0,0" />
-        <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+        <TextBlock Grid.Row="4" Text="最近会话" FontWeight="Bold" Margin="0,16,0,0" />
+        <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
             <ItemsControl ItemsSource="{Binding History}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="0,4,0,4" Padding="10" Background="#F5F6F8" CornerRadius="4">
+                        <Border Margin="0,4,0,4" Padding="10" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="4">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -72,9 +120,9 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding GameName}" FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="1" Text="{Binding StartedAt, StringFormat=MM-dd HH:mm:ss}"
-                                           FontSize="12" Foreground="#888888" />
+                                           FontSize="12" FontFamily="{StaticResource MonoFont}" Foreground="{DynamicResource TextTertiaryBrush}" />
                                 <TextBlock Grid.Column="2" Text="{Binding DurationSeconds, StringFormat={}{0} 秒}"
-                                           FontSize="12" Foreground="#666666"
+                                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                            HorizontalAlignment="Right" />
                             </Grid>
                         </Border>

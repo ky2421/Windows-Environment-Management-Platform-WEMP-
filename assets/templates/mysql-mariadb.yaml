@@ -1,0 +1,28 @@
+# 环境模板：MySQL / MariaDB
+
+id: mysql-mariadb
+name: MySQL / MariaDB 数据库
+description: 关系型数据库：MySQL Server + MariaDB（二选一即可，默认安装 MySQL）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: mysql
+    version: "8"
+    versionManager: direct
+    optional: false
+  - name: mariadb
+    versionManager: direct
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "mysql --version"
+      expected: "mysql  Ver .*"
+
+prerequisites: []

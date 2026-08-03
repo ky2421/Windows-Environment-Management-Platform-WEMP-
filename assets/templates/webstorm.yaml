@@ -1,0 +1,24 @@
+# 环境模板：WebStorm
+
+id: webstorm
+name: WebStorm
+description: JetBrains 前端 / JavaScript 集成开发环境（需要许可证）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: webstorm
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "winget list --id JetBrains.WebStorm"
+      expected: "JetBrains\\.WebStorm"
+
+prerequisites: []

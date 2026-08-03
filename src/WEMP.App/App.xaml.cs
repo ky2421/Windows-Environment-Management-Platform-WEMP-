@@ -18,6 +18,7 @@ public partial class App : Application
 {
     private IServiceProvider? _services;
     private IModuleHost? _moduleHost;
+    private Services.TrayIconService? _trayIcon;
     private WEMP.GameMode.Services.GameSessionMonitor? _gameMonitor;
     private WEMP.GameMode.Services.IGameSessionService? _sessionService;
 
@@ -30,7 +31,8 @@ public partial class App : Application
             .WriteTo.File(
                 Path.Combine(WempDatabase.DefaultDataDirectory, "logs", "wemp-.log"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30)
+                retainedFileCountLimit: 30,
+                encoding: System.Text.Encoding.UTF8)
             .CreateLogger();
 
         try
@@ -42,6 +44,7 @@ public partial class App : Application
             services.AddWempInfrastructure();
             services.AddSingleton<MainWindow>();
             services.AddSingleton<MainViewModel>();
+            services.AddSingleton<Services.TrayIconService>();
 
             // 注册各模块页面（模块占位阶段为空，业务开发时由模块自身注册）
             RegisterModulePages(services);
@@ -50,9 +53,9 @@ public partial class App : Application
             Log.Information("启动：DI 容器构建完成");
 
             // 数据库就绪：应用迁移并创建数据库文件
-            using (var scope = _services.CreateScope())
+            var dbFactory = _services.GetRequiredService<IDbContextFactory<WempDbContext>>();
+            await using (var db = await dbFactory.CreateDbContextAsync())
             {
-                var db = scope.ServiceProvider.GetRequiredService<WempDbContext>();
                 db.Database.Migrate();
             }
             Log.Information("启动：数据库迁移完成");
@@ -81,6 +84,10 @@ public partial class App : Application
             MainWindow = window;
             window.Show();
             Log.Information("启动：主窗口已显示");
+
+            // 系统托盘：快速开关游戏模式、恢复主窗口
+            _trayIcon = _services.GetRequiredService<Services.TrayIconService>();
+            Log.Information("启动：系统托盘已就绪");
         }
         catch (Exception ex)
         {
@@ -98,6 +105,9 @@ public partial class App : Application
     {
         try
         {
+            // 移除托盘图标
+            _trayIcon?.Dispose();
+
             // 停止游戏监测并结束进行中的会话（保存记录、恢复系统状态）
             _gameMonitor?.Dispose();
             if (_sessionService is WEMP.GameMode.Services.GameSessionService concrete)
@@ -121,11 +131,13 @@ public partial class App : Application
         }
     }
 
-    private static void RegisterModulePages(IServiceCollection services)
+    /// <summary>注册全部模块页面与依赖服务（探针/宿主可复用）。</summary>
+    public static void RegisterModulePages(IServiceCollection services)
     {
         // 系统检测模块
         services.AddSingleton<WEMP.SystemInfo.Detection.ISystemInfoProvider, WEMP.SystemInfo.Detection.WmiSystemInfoProvider>();
         services.AddSingleton<WEMP.SystemInfo.Persistence.ISnapshotRepository, WEMP.SystemInfo.Persistence.SnapshotRepository>();
+        services.AddSingleton<WEMP.SystemInfo.Services.JunkCleanerService>();
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoViewModel>();
         services.AddTransient<WEMP.SystemInfo.UI.SystemInfoPage>();
 
@@ -159,6 +171,7 @@ public partial class App : Application
         services.AddTransient<WEMP.Backup.UI.BackupPage>();
 
         // 游戏模式模块
+        services.AddSingleton<WEMP.GameMode.Detection.ICustomGameLibrary, WEMP.GameMode.Detection.CustomGameLibraryService>();
         services.AddSingleton<WEMP.GameMode.Detection.IGameDetector, WEMP.GameMode.Detection.GameLibraryDetector>();
         services.AddSingleton<WEMP.GameMode.Services.IGameStateSwitcher, WEMP.GameMode.Services.SystemStateSwitcher>();
         services.AddSingleton<WEMP.GameMode.Services.IGameSessionService, WEMP.GameMode.Services.GameSessionService>();
@@ -174,8 +187,21 @@ public partial class App : Application
         services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.DiskAction>();
         services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.PowerAction>();
         services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.MemoryAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.VisualAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.BackgroundAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.GpuAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.AppxAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.PagefileAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.HagAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.DeviceAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.BiosAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.TimerAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.GuideAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.ScheduledTaskAction>();
+        services.AddSingleton<WEMP.Optimization.Execution.IOptimizationAction, WEMP.Optimization.Execution.WindowsFeatureAction>();
         services.AddSingleton<WEMP.Optimization.Execution.OptimizationActionFactory>();
         services.AddSingleton<WEMP.Optimization.Services.IOptimizationService, WEMP.Optimization.Services.OptimizationService>();
+        services.AddSingleton<WEMP.Optimization.Services.ISystemRestorePointService, WEMP.Optimization.Services.SystemRestorePointService>();
         services.AddSingleton<WEMP.Optimization.Seeding.OptimizationSeedService>();
         services.AddTransient<WEMP.Optimization.UI.OptimizationPageViewModel>();
         services.AddTransient<WEMP.Optimization.UI.OptimizationPage>();

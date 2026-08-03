@@ -12,7 +12,7 @@ namespace WEMP.Optimization.Seeding;
 /// 优化知识库种子同步：将嵌入的 optimization-items.json 同步到数据库。
 /// 幂等：按 Code 判断，缺失插入，已存在仅更新名称等展示字段，不覆盖用户自定义。
 /// </summary>
-public sealed class OptimizationSeedService(WempDbContext db)
+public sealed class OptimizationSeedService(IDbContextFactory<WempDbContext> dbFactory)
 {
     private const string ResourceSuffix = "optimization-items.json";
 
@@ -34,22 +34,38 @@ public sealed class OptimizationSeedService(WempDbContext db)
         var kb = JsonSerializer.Deserialize<OptimizationKb>(json, KbJsonOptions)
             ?? throw new InvalidOperationException("知识库 JSON 解析失败");
 
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var existing = await db.OptimizationItems
             .ToDictionaryAsync(i => i.Code, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var added = 0;
+        var updated = 0;
         foreach (var item in kb.Items)
         {
             if (existing.TryGetValue(item.Code, out var dbItem))
             {
-                dbItem.Name = item.Name;
-                dbItem.Category = item.Category;
-                dbItem.Principle = item.Principle;
-                dbItem.Risk = item.Risk;
-                dbItem.Recommendation = item.Recommendation;
-                dbItem.IsRecoverable = item.IsRecoverable;
-                dbItem.TargetJson = item.TargetJson;
-                dbItem.KbVersion = kb.KbVersion;
+                if (dbItem.Name != item.Name
+                    || dbItem.Category != item.Category
+                    || dbItem.Principle != item.Principle
+                    || dbItem.Risk != item.Risk
+                    || dbItem.Recommendation != item.Recommendation
+                    || dbItem.RiskLevel != item.RiskLevel
+                    || dbItem.IsRecoverable != item.IsRecoverable
+                    || dbItem.TargetJson != item.TargetJson
+                    || dbItem.KbVersion != kb.KbVersion)
+                {
+                    dbItem.Name = item.Name;
+                    dbItem.Category = item.Category;
+                    dbItem.Principle = item.Principle;
+                    dbItem.Risk = item.Risk;
+                    dbItem.Recommendation = item.Recommendation;
+                    dbItem.RiskLevel = item.RiskLevel;
+                    dbItem.IsRecoverable = item.IsRecoverable;
+                    dbItem.TargetJson = item.TargetJson;
+                    dbItem.KbVersion = kb.KbVersion;
+                    updated++;
+                }
+
                 continue;
             }
 
@@ -58,10 +74,10 @@ public sealed class OptimizationSeedService(WempDbContext db)
             added++;
         }
 
-        if (added > 0)
+        if (added > 0 || updated > 0)
         {
             await db.SaveChangesAsync(cancellationToken);
-            Log.Information("优化知识库同步完成：新增 {Added} 条，共 {Total} 条", added, kb.Items.Length);
+            Log.Information("优化知识库同步完成：新增 {Added} 条，更新 {Updated} 条，共 {Total} 条", added, updated, kb.Items.Length);
         }
 
         return added;

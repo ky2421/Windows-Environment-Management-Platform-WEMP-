@@ -8,14 +8,14 @@ namespace WEMP.Logging.Services;
 /// <summary>日志中心服务实现。</summary>
 public sealed class LoggingService : ILoggingService
 {
-    private readonly WempDbContext _db;
+    private readonly IDbContextFactory<WempDbContext> _dbFactory;
     private readonly IAuditLogService _audits;
     private readonly IEventSource _eventSource;
     private readonly IAnomalyDetector _detector;
 
-    public LoggingService(WempDbContext db, IAuditLogService audits, IEventSource eventSource, IAnomalyDetector detector)
+    public LoggingService(IDbContextFactory<WempDbContext> dbFactory, IAuditLogService audits, IEventSource eventSource, IAnomalyDetector detector)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _audits = audits;
         _eventSource = eventSource;
         _detector = detector;
@@ -36,14 +36,14 @@ public sealed class LoggingService : ILoggingService
 
     public async Task<int> AggregateEventsAsync(TimeSpan window, CancellationToken cancellationToken = default)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var added = 0;
-
         foreach (var channel in new[] { "Application", "System" })
         {
             var events = await _eventSource.ReadRecentAsync(channel, window, cancellationToken).ConfigureAwait(false);
             foreach (var evt in events)
             {
-                var exists = await _db.SystemEvents.AsNoTracking().AnyAsync(
+                var exists = await db.SystemEvents.AsNoTracking().AnyAsync(
                     e => e.EventTime == evt.EventTime && e.Provider == evt.Provider && e.EventId == evt.EventId,
                     cancellationToken).ConfigureAwait(false);
                 if (exists)
@@ -52,33 +52,37 @@ public sealed class LoggingService : ILoggingService
                 }
 
                 evt.Provider ??= channel;
-                _db.SystemEvents.Add(evt);
+                db.SystemEvents.Add(evt);
                 added++;
             }
 
             // 每通道提交一次，保证后续通道去重查询能看见已入库事件
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         Log.Information("事件聚合完成：新增 {Count} 条", added);
         return added;
     }
 
-    public Task<List<SystemEvent>> GetSystemEventsAsync(int limit = 200, CancellationToken cancellationToken = default)
-        => _db.SystemEvents.AsNoTracking()
+    public async Task<List<SystemEvent>> GetSystemEventsAsync(int limit = 200, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.SystemEvents.AsNoTracking()
             .OrderByDescending(e => e.EventTime)
             .Take(limit)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     public async Task<int> RunAnomalyScanAsync(TimeSpan window, CancellationToken cancellationToken = default)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var since = DateTime.Now.Subtract(window);
 
-        var events = await _db.SystemEvents.AsNoTracking()
+        var events = await db.SystemEvents.AsNoTracking()
             .Where(e => e.EventTime >= since)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var audits = await _db.AuditLogs.AsNoTracking()
+        var audits = await db.AuditLogs.AsNoTracking()
             .Where(a => a.Timestamp >= since)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
@@ -86,7 +90,7 @@ public sealed class LoggingService : ILoggingService
         var added = 0;
         foreach (var anomaly in candidates)
         {
-            var duplicate = await _db.LogAnomalies.AsNoTracking().AnyAsync(
+            var duplicate = await db.LogAnomalies.AsNoTracking().AnyAsync(
                 a => a.RuleCode == anomaly.RuleCode
                      && a.Title == anomaly.Title
                      && a.Status == "new"
@@ -97,18 +101,19 @@ public sealed class LoggingService : ILoggingService
                 continue;
             }
 
-            _db.LogAnomalies.Add(anomaly);
+            db.LogAnomalies.Add(anomaly);
             added++;
         }
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         Log.Information("异常扫描完成：发现 {Count} 条新异常", added);
         return added;
     }
 
     public async Task<List<LogAnomaly>> GetAnomaliesAsync(bool includeResolved = false, CancellationToken cancellationToken = default)
     {
-        var query = _db.LogAnomalies.AsNoTracking();
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var query = db.LogAnomalies.AsNoTracking();
         if (!includeResolved)
         {
             query = query.Where(a => a.Status != "resolved");
@@ -119,7 +124,8 @@ public sealed class LoggingService : ILoggingService
 
     public async Task<bool> ResolveAnomalyAsync(long anomalyId, CancellationToken cancellationToken = default)
     {
-        var anomaly = await _db.LogAnomalies.FindAsync([anomalyId], cancellationToken).ConfigureAwait(false);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var anomaly = await db.LogAnomalies.FindAsync([anomalyId], cancellationToken).ConfigureAwait(false);
         if (anomaly is null)
         {
             return false;
@@ -127,7 +133,7 @@ public sealed class LoggingService : ILoggingService
 
         anomaly.Status = "resolved";
         anomaly.ResolvedAt = DateTime.Now;
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 }

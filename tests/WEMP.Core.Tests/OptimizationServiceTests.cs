@@ -61,7 +61,19 @@ public class OptimizationServiceTests
 
     private sealed record TestHarness(WempDbContext Db, OptimizationService Service, FakeAction Action);
 
-    private static TestHarness CreateHarness(bool actionSupportsBackup = true)
+    private sealed class FakeRestorePointService(long sequence) : ISystemRestorePointService
+    {
+        public int CallCount { get; private set; }
+
+        public Task<long?> CreateRestorePointAsync(string description, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult<long?>(sequence);
+        }
+    }
+
+    private static TestHarness CreateHarness(
+        bool actionSupportsBackup = true, ISystemRestorePointService? restorePointService = null)
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -80,7 +92,10 @@ public class OptimizationServiceTests
             ThrowOnApply = true,
         };
         var factory = new OptimizationActionFactory([registryAction, memoryAction]);
-        return new TestHarness(db, new OptimizationService(db, factory), registryAction);
+        return new TestHarness(
+            db,
+            new OptimizationService(new TestDbFactory(connection), factory, restorePointService),
+            registryAction);
     }
 
     private static async Task<OptimizationItem> AddItemAsync(
@@ -200,6 +215,46 @@ public class OptimizationServiceTests
 
         Assert.Equal(2, result.Results.Count);
         Assert.All(result.Results, r => Assert.True(r.Success));
+    }
+
+    [Fact]
+    public async Task ApplySelected_writes_restore_point_id_to_records()
+    {
+        var restoreService = new FakeRestorePointService(42);
+        var (db, service, action) = CreateHarness(restorePointService: restoreService);
+        await AddItemAsync(db, "test.rp");
+
+        await service.ApplySelectedAsync(["test.rp"]);
+
+        Assert.Equal(1, restoreService.CallCount);
+        var record = await db.OptimizationRecords.SingleAsync();
+        Assert.Equal(42, record.RestorePointId);
+    }
+
+    [Fact]
+    public async Task ApplyOneKey_creates_restore_point_before_optimization()
+    {
+        var restoreService = new FakeRestorePointService(7);
+        var (db, service, action) = CreateHarness(restorePointService: restoreService);
+        await AddItemAsync(db, "test.one");
+
+        await service.ApplyOneKeyAsync();
+
+        Assert.Equal(1, restoreService.CallCount);
+        var record = await db.OptimizationRecords.SingleAsync();
+        Assert.Equal(7, record.RestorePointId);
+    }
+
+    [Fact]
+    public async Task Apply_without_restore_service_leaves_restore_point_null()
+    {
+        var (db, service, action) = CreateHarness();
+        await AddItemAsync(db, "test.norp");
+
+        await service.ApplySelectedAsync(["test.norp"]);
+
+        var record = await db.OptimizationRecords.SingleAsync();
+        Assert.Null(record.RestorePointId);
     }
 
     [Fact]

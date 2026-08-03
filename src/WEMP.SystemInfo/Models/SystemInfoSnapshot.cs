@@ -19,6 +19,8 @@ public sealed class SystemInfoSnapshot
     public List<VolumeInfo> Volumes { get; set; } = [];
 
     public List<DevToolInfo> DevTools { get; set; } = [];
+
+    public NetworkInfo Network { get; set; } = new();
 }
 
 /// <summary>操作系统信息。</summary>
@@ -41,6 +43,19 @@ public sealed class OsInfo
     public bool SecureBoot { get; set; }
 
     public DateTime? InstallDate { get; set; }
+
+    /// <summary>系统上次启动时间（UTC）。</summary>
+    public DateTime? LastBootUpTime { get; set; }
+}
+
+/// <summary>网络连接状态。</summary>
+public sealed class NetworkInfo
+{
+    /// <summary>是否存在已连接的非回环网络适配器。</summary>
+    public bool IsAvailable { get; set; }
+
+    /// <summary>处于连接状态的适配器名称列表。</summary>
+    public List<string> ActiveAdapters { get; set; } = [];
 }
 
 /// <summary>CPU 信息。</summary>

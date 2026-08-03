@@ -1,0 +1,24 @@
+# 环境模板：MongoDB
+
+id: mongodb
+name: MongoDB 数据库
+description: 文档型非关系数据库（MongoDB Server）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: mongodb
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "mongod --version"
+      expected: "db version v.*"
+
+prerequisites: []

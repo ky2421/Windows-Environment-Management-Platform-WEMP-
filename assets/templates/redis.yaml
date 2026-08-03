@@ -1,0 +1,24 @@
+# 环境模板：Redis
+
+id: redis
+name: Redis 缓存数据库
+description: 内存键值缓存数据库（Windows 社区端口）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: redis
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "redis-server --version"
+      expected: "Redis server v=.*"
+
+prerequisites: []

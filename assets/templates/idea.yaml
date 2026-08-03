@@ -1,0 +1,24 @@
+# 环境模板：IntelliJ IDEA
+
+id: intellij-idea
+name: IntelliJ IDEA
+description: JetBrains Java / Kotlin 集成开发环境（Community 版）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: intellij
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "winget list --id JetBrains.IntelliJIDEA.Community"
+      expected: "JetBrains\\.IntelliJIDEA"
+
+prerequisites: []

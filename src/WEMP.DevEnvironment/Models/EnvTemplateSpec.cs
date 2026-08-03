@@ -8,6 +8,7 @@ public sealed class EnvTemplateSpec
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string? Description { get; set; }
+    public string? DeployWarning { get; set; }
     public string Version { get; set; } = "1.0";
     public string? MinWindowsVersion { get; set; }
     public List<ToolSpec> Tools { get; set; } = [];

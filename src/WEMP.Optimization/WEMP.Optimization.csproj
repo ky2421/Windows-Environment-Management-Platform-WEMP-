@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WEMP.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WEMP.Core\WEMP.Core.csproj" />
     <ProjectReference Include="..\WEMP.Infrastructure\WEMP.Infrastructure.csproj" />
   </ItemGroup>

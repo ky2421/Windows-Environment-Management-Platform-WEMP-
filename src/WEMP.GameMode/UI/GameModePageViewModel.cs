@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Security.Principal;
 using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,9 +16,11 @@ public partial class GameModePageViewModel : ObservableObject
 {
     private readonly IGameSessionService _service;
     private readonly IGameDetector _detector;
+    private readonly ICustomGameLibrary _customLibrary;
     private readonly DispatcherTimer _clock;
 
     public ObservableCollection<GameSession> History { get; } = [];
+    public ObservableCollection<CustomGame> CustomGames { get; } = [];
 
     [ObservableProperty]
     private bool _isAutoMonitor;
@@ -34,15 +37,35 @@ public partial class GameModePageViewModel : ObservableObject
     [ObservableProperty]
     private string _status = "正在加载…";
 
-    public GameModePageViewModel(IGameSessionService service, IGameDetector detector)
+    [ObservableProperty]
+    private bool _isAdministrator;
+
+    /// <summary>非管理员时提示权限说明。</summary>
+    public bool ShowPermissionHint => !IsAdministrator;
+
+    [ObservableProperty]
+    private string _newGameName = "";
+
+    [ObservableProperty]
+    private string _newProcessName = "";
+
+    [ObservableProperty]
+    private string _libraryStatus = "";
+
+    public GameModePageViewModel(IGameSessionService service, IGameDetector detector, ICustomGameLibrary customLibrary)
     {
         _service = service;
         _detector = detector;
+        _customLibrary = customLibrary;
         _service.SessionStarted += OnSessionStarted;
         _service.SessionEnded += OnSessionEnded;
 
         _clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clock.Tick += (_, _) => RefreshElapsed();
+
+        IsAdministrator = new WindowsPrincipal(WindowsIdentity.GetCurrent())
+            .IsInRole(WindowsBuiltInRole.Administrator);
+        OnPropertyChanged(nameof(ShowPermissionHint));
     }
 
     public async Task InitializeAsync()
@@ -55,6 +78,7 @@ public partial class GameModePageViewModel : ObservableObject
         }
 
         await RefreshHistoryAsync();
+        RefreshCustomGamesAsync();
         Status = $"自动监测已{(IsAutoMonitor ? "开启" : "关闭")}";
     }
 
@@ -70,7 +94,7 @@ public partial class GameModePageViewModel : ObservableObject
 
         if (!_detector.IsGameProcessById(pid.Value))
         {
-            Status = "前台进程不在游戏库中，可在 GameLibrary.cs 中补充";
+            Status = "前台进程不在游戏库中，可在下方自定义游戏库中添加";
             return;
         }
 
@@ -150,5 +174,50 @@ public partial class GameModePageViewModel : ObservableObject
         return time.TotalHours >= 1
             ? $"{(int)time.TotalHours:00}:{time.Minutes:00}:{time.Seconds:00}"
             : $"{time.Minutes:00}:{time.Seconds:00}";
+    }
+
+    private void RefreshCustomGamesAsync()
+    {
+        CustomGames.Clear();
+        foreach (var game in _customLibrary.GetAll())
+        {
+            CustomGames.Add(game);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddCustomGameAsync()
+    {
+        try
+        {
+            var game = await _customLibrary.AddAsync(NewGameName, NewProcessName);
+            CustomGames.Add(game);
+            LibraryStatus = $"已添加：{game.Name}（{game.ProcessName}）";
+            NewGameName = "";
+            NewProcessName = "";
+        }
+        catch (InvalidOperationException ex)
+        {
+            LibraryStatus = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "添加自定义游戏失败");
+            LibraryStatus = $"添加失败：{ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveCustomGameAsync(CustomGame game)
+    {
+        var removed = await _customLibrary.RemoveAsync(game.Id);
+        if (!removed)
+        {
+            LibraryStatus = "条目不存在，可能已被删除";
+            return;
+        }
+
+        CustomGames.Remove(game);
+        LibraryStatus = $"已删除：{game.Name}";
     }
 }

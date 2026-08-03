@@ -1,0 +1,68 @@
+# 环境模板：C/C++ 开发环境
+
+id: cpp-msvc
+name: C/C++ 开发环境
+description: Visual C++ 运行库 + MSVC 编译链（VS Build Tools）+ CMake + LLVM/Clang + MinGW（MSYS2）。⚠ MinGW（MSYS2）下载源为 GitHub，需加速器
+deployWarning: "下载源为 GitHub（MinGW/MSYS2 等），可能需要加速器"
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: vcredist
+    versionManager: direct
+    optional: false
+  - name: cmake
+    version: "3.30"
+    versionManager: direct
+    optional: false
+  - name: buildtools
+    optional: true
+  - name: llvm
+    optional: true
+  - name: msys2
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "cmake --version"
+      expected: 'cmake version 3\..*'
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"
+# 环境模板：C/C++ 开发环境
+
+id: cpp-msvc
+name: C/C++ 开发环境
+description: CMake + LLVM/Clang + Visual Studio Build Tools（MSVC 编译链）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: cmake
+    version: "3.30"
+    versionManager: direct
+    optional: false
+  - name: llvm
+    optional: true
+  - name: buildtools
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "cmake --version"
+      expected: 'cmake version 3\..*'
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

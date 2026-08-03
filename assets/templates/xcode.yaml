@@ -1,0 +1,21 @@
+# 环境模板：Xcode（仅 macOS）
+
+id: xcode
+name: Xcode 开发环境
+description: iOS / macOS 开发（仅 macOS 专属，需在 Mac 上通过 App Store 安装，Windows 上无法部署）
+version: "1.0"
+
+tools:
+  - name: xcode
+    versionManager: direct
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands: []
+
+prerequisites: []

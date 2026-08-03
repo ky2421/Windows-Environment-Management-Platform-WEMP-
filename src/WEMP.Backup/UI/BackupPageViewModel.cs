@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Security.Principal;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -28,6 +29,12 @@ public partial class BackupPageViewModel : ObservableObject
 
     [ObservableProperty]
     private string _status = "就绪";
+
+    [ObservableProperty]
+    private bool _isAdministrator;
+
+    /// <summary>非管理员时提示权限说明。</summary>
+    public bool ShowPermissionHint => !IsAdministrator;
 
     // 编辑表单字段
     [ObservableProperty]
@@ -59,6 +66,10 @@ public partial class BackupPageViewModel : ObservableObject
     public BackupPageViewModel(IBackupService service)
     {
         _service = service;
+
+        IsAdministrator = new WindowsPrincipal(WindowsIdentity.GetCurrent())
+            .IsInRole(WindowsBuiltInRole.Administrator);
+        OnPropertyChanged(nameof(ShowPermissionHint));
     }
 
     public async Task InitializeAsync()
@@ -255,7 +266,7 @@ public partial class BackupPageViewModel : ObservableObject
         }
 
         var confirm = MessageBox.Show(
-            "将备份内容恢复到源路径（同名文件将被覆盖），继续？",
+            "将备份内容恢复到源路径（同名文件将被覆盖，备份时已删除的文件将从目标移除），继续？",
             "确认还原",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);

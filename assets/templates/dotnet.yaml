@@ -1,0 +1,25 @@
+# 环境模板：.NET 开发环境
+
+id: dotnet-8
+name: .NET 开发环境
+description: .NET SDK 8 LTS + NuGet 包管理
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: dotnet
+    version: "8"
+    versionManager: direct    # direct / dotnet-install
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "dotnet --version"
+      expected: '8\..*'
+
+prerequisites: []

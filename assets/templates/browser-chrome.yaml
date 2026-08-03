@@ -1,0 +1,24 @@
+# 环境模板：浏览器调试环境
+
+id: browser-chrome
+name: 浏览器环境（Chrome）
+description: 前端网页调试：Google Chrome + 开发者工具（原生 JS / Vue / React 调试）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: chrome
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "winget list --id Google.Chrome"
+      expected: "Google.Chrome"
+
+prerequisites: []

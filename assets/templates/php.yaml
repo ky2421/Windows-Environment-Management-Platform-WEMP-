@@ -1,0 +1,29 @@
+# 环境模板：PHP 开发环境
+
+id: php-8
+name: PHP 开发环境
+description: PHP 8 + Composer 依赖管理
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: php
+    version: "8"
+    versionManager: direct
+    optional: false
+  - name: composer
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "php --version"
+      expected: 'PHP 8\..*'
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

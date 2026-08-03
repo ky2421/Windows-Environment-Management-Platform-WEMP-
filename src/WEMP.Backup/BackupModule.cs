@@ -1,3 +1,7 @@
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using WEMP.Backup.Services;
 using WEMP.Backup.UI;
 using WEMP.Core.Abstractions;
 
@@ -9,6 +13,13 @@ namespace WEMP.Backup;
 /// </summary>
 public sealed class BackupModule : IModule
 {
+    /// <summary>到期自动备份的检查周期。</summary>
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(1);
+
+    private IServiceProvider? _services;
+    private Timer? _autoBackupTimer;
+    private int _tickRunning;
+
     public string Name => "WEMP.Backup";
 
     public string DisplayName => "备份恢复";
@@ -26,11 +37,53 @@ public sealed class BackupModule : IModule
     ];
 
     public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    {
+        _services = services;
+        _autoBackupTimer = new Timer(OnAutoBackupTick, null, CheckInterval, CheckInterval);
+        Log.Information("备份模块：到期自动备份调度已启动（检查间隔 {Interval} 分钟）", CheckInterval.TotalMinutes);
+        return Task.CompletedTask;
+    }
 
     public Task ActivateAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
     public Task ShutdownAsync(CancellationToken cancellationToken = default)
-        => Task.CompletedTask;
+    {
+        _autoBackupTimer?.Dispose();
+        _autoBackupTimer = null;
+        return Task.CompletedTask;
+    }
+
+    private async void OnAutoBackupTick(object? state)
+    {
+        // 防重入：上一轮检查尚未结束（如大文件备份耗时）则跳过本轮
+        if (Interlocked.Exchange(ref _tickRunning, 1) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var services = _services;
+            var backupService = services?.GetService<IBackupService>();
+            if (backupService is null)
+            {
+                return;
+            }
+
+            var ran = await backupService.RunDueAutoBackupsAsync().ConfigureAwait(false);
+            if (ran > 0)
+            {
+                Log.Information("到期自动备份完成：{Count} 个任务", ran);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "到期自动备份检查异常");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _tickRunning, 0);
+        }
+    }
 }

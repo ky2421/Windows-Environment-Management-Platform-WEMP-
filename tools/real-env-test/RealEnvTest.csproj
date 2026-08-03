@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>WEMP.RealEnvTest</AssemblyName>
+    <RootNamespace>WEMP.RealEnvTest</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\WEMP.Infrastructure\WEMP.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\WEMP.Optimization\WEMP.Optimization.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -45,7 +45,7 @@ public class BackupServiceTests : IDisposable
 
         var db = new WempDbContext(options);
         db.Database.EnsureCreated();
-        return (db, new BackupService(db));
+        return (db, new BackupService(new TestDbFactory(connection)));
     }
 
     private void CreateFiles(params (string RelativePath, string Content)[] files)
@@ -107,9 +107,12 @@ public class BackupServiceTests : IDisposable
         var first = await service.RunBackupAsync(task.Id);
         Assert.Equal(3, first.FileCount);
 
-        // 修改 a.txt（时间戳推到未来），新增 d.txt，删除 b.txt
-        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "a.txt"), DateTime.UtcNow.AddSeconds(30));
+        // 修改 a.txt（时间戳推到首次备份记录之后），新增 d.txt，删除 b.txt。
+        // 基准取自 first.FinishedAt 而非实时时钟：环境时钟漂移不影响增量判定。
+        var baseline = first.FinishedAt!.Value.ToUniversalTime();
+        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "a.txt"), baseline.AddSeconds(30));
         File.WriteAllText(Path.Combine(_sourceDir, "d.txt"), "DDD");
+        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "d.txt"), baseline.AddSeconds(31));
 
         var second = await service.RunBackupAsync(task.Id);
 
@@ -254,6 +257,40 @@ public class BackupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteTask_removes_destination_root_directory()
+    {
+        var (_, service) = CreateHarness();
+        CreateFiles(("a.txt", "AAA"));
+
+        var task = await service.CreateTaskAsync(CreateTask());
+        await service.RunBackupAsync(task.Id);
+
+        var root = Path.Combine(_destDir, $"{task.Id}_测试任务");
+        Assert.True(Directory.Exists(root));
+
+        var deleted = await service.DeleteTaskAsync(task.Id);
+        Assert.True(deleted);
+        Assert.False(Directory.Exists(root));
+    }
+
+    [Fact]
+    public async Task DeleteRecord_removes_backup_directory()
+    {
+        var (_, service) = CreateHarness();
+        CreateFiles(("a.txt", "AAA"));
+
+        var task = await service.CreateTaskAsync(CreateTask());
+        var record = await service.RunBackupAsync(task.Id);
+
+        var backupDir = Path.Combine(_destDir, $"{task.Id}_测试任务", $"{record.StartedAt:yyyyMMdd_HHmmss}");
+        Assert.True(Directory.Exists(backupDir));
+
+        var deleted = await service.DeleteRecordAsync(record.Id);
+        Assert.True(deleted);
+        Assert.False(Directory.Exists(backupDir));
+    }
+
+    [Fact]
     public async Task Single_file_source_backup_and_restore()
     {
         var (_, service) = CreateHarness();
@@ -282,5 +319,102 @@ public class BackupServiceTests : IDisposable
         Assert.True(GlobMatcher.IsMatch("src/main.cs", ["**/main.*"]));
         Assert.False(GlobMatcher.IsMatch("src/main.cs", ["**/main.csx"]));
         Assert.True(GlobMatcher.IsMatch("data/2024/report.csv", ["data/**"]));
+    }
+
+    [Fact]
+    public async Task Incremental_backup_records_deleted_files()
+    {
+        var (_, service) = CreateHarness();
+        CreateFiles(("a.txt", "AAA"), ("b.txt", "BBB"), ("c.txt", "CCC"));
+
+        var task = await service.CreateTaskAsync(CreateTask(mode: "incremental"));
+        var first = await service.RunBackupAsync(task.Id);
+        Assert.Equal(3, first.FileCount);
+
+        // 删除 b.txt；a/c 时间戳推过去，确保不会被重复复制
+        File.Delete(Path.Combine(_sourceDir, "b.txt"));
+        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "a.txt"), DateTime.UtcNow.AddDays(-1));
+        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "c.txt"), DateTime.UtcNow.AddDays(-1));
+
+        var second = await service.RunBackupAsync(task.Id);
+
+        Assert.Equal(0, second.FileCount);
+        Assert.Equal("incremental", second.BackupType);
+        var entries = await service.GetRecordEntriesAsync(second.Id);
+        var deleted = Assert.Single(entries);
+        Assert.Equal("b.txt", deleted.RelativePath);
+        Assert.Equal("deleted", deleted.Action);
+        Assert.Contains("删除 1 个文件", second.Message);
+    }
+
+    [Fact]
+    public async Task Restore_incremental_record_reconstructs_full_snapshot()
+    {
+        var (_, service) = CreateHarness();
+        CreateFiles(("a.txt", "AAA"), ("b.txt", "BBB"));
+
+        var task = await service.CreateTaskAsync(CreateTask(mode: "incremental"));
+        var first = await service.RunBackupAsync(task.Id);
+        Assert.Equal(2, first.FileCount);
+
+        // 修改 a.txt（时间戳推到首次备份记录之后）后做第二次增量：仅复制 a.txt。
+        // 基准取自 first.FinishedAt 而非实时时钟：环境时钟漂移不影响增量判定。
+        var baseline = first.FinishedAt!.Value.ToUniversalTime();
+        File.WriteAllText(Path.Combine(_sourceDir, "a.txt"), "A2");
+        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "a.txt"), baseline.AddSeconds(30));
+
+        var second = await service.RunBackupAsync(task.Id);
+        Assert.Equal(1, second.FileCount);
+        Assert.Equal("incremental", second.BackupType);
+
+        // 还原增量记录：a.txt 取本次目录（新内容），b.txt 必须链式回溯到首次目录
+        var restoreDir = Path.Combine(_sourceDir, "..", $"restore-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(restoreDir);
+        try
+        {
+            var result = await service.RestoreAsync(second.Id, restoreDir);
+            Assert.Equal(2, result.FileCount);
+            Assert.Equal("A2", File.ReadAllText(Path.Combine(restoreDir, "a.txt")));
+            Assert.Equal("BBB", File.ReadAllText(Path.Combine(restoreDir, "b.txt")));
+        }
+        finally
+        {
+            Directory.Delete(restoreDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Restore_incremental_record_removes_deleted_files()
+    {
+        var (_, service) = CreateHarness();
+        CreateFiles(("a.txt", "AAA"), ("b.txt", "BBB"));
+
+        var task = await service.CreateTaskAsync(CreateTask(mode: "incremental"));
+        var first = await service.RunBackupAsync(task.Id);
+        Assert.Equal(2, first.FileCount);
+
+        // 删除 b.txt 后做第二次增量：产生 deleted 条目
+        File.Delete(Path.Combine(_sourceDir, "b.txt"));
+        File.SetLastWriteTimeUtc(Path.Combine(_sourceDir, "a.txt"), DateTime.UtcNow.AddDays(-1));
+        var second = await service.RunBackupAsync(task.Id);
+        Assert.Equal(0, second.FileCount);
+        Assert.Contains(await service.GetRecordEntriesAsync(second.Id),
+            e => e.RelativePath == "b.txt" && e.Action == "deleted");
+
+        // 还原到含残留 b.txt 的目录：应删除残留并恢复 a.txt
+        var restoreDir = Path.Combine(_sourceDir, "..", $"restore-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(restoreDir);
+        File.WriteAllText(Path.Combine(restoreDir, "b.txt"), "STALE");
+        try
+        {
+            var result = await service.RestoreAsync(second.Id, restoreDir);
+            Assert.Equal(2, result.FileCount); // 恢复 a.txt + 删除残留 b.txt
+            Assert.Equal("AAA", File.ReadAllText(Path.Combine(restoreDir, "a.txt")));
+            Assert.False(File.Exists(Path.Combine(restoreDir, "b.txt")));
+        }
+        finally
+        {
+            Directory.Delete(restoreDir, recursive: true);
+        }
     }
 }

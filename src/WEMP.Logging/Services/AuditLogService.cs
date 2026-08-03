@@ -7,11 +7,11 @@ namespace WEMP.Logging.Services;
 /// <summary>审计日志服务实现。</summary>
 public sealed class AuditLogService : IAuditLogService
 {
-    private readonly WempDbContext _db;
+    private readonly IDbContextFactory<WempDbContext> _dbFactory;
 
-    public AuditLogService(WempDbContext db)
+    public AuditLogService(IDbContextFactory<WempDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public async Task<(List<AuditLog> Items, int Total)> QueryAsync(
@@ -19,7 +19,8 @@ public sealed class AuditLogService : IAuditLogService
         DateTime? since = null, DateTime? until = null,
         int page = 1, int pageSize = 100, CancellationToken cancellationToken = default)
     {
-        var query = _db.AuditLogs.AsNoTracking();
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var query = db.AuditLogs.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(module))
         {
@@ -64,7 +65,8 @@ public sealed class AuditLogService : IAuditLogService
 
     public async Task<AuditStatistics> GetStatisticsAsync(DateTime? since = null, CancellationToken cancellationToken = default)
     {
-        var query = _db.AuditLogs.AsNoTracking();
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var query = db.AuditLogs.AsNoTracking();
         if (since.HasValue)
         {
             query = query.Where(l => l.Timestamp >= since.Value);
@@ -87,7 +89,7 @@ public sealed class AuditLogService : IAuditLogService
             .ToList();
 
         var total = byModule.Sum(m => m.Count);
-        var failed24h = await _db.AuditLogs
+        var failed24h = await db.AuditLogs
             .AsNoTracking()
             .CountAsync(l => l.Timestamp >= DateTime.Now.AddHours(-24) && l.Result == "failed", cancellationToken)
             .ConfigureAwait(false);
@@ -98,7 +100,8 @@ public sealed class AuditLogService : IAuditLogService
     public async Task WriteAsync(string module, string action, string? target = null, string? message = null,
         string? result = null, string? detailJson = null, string level = "info", CancellationToken cancellationToken = default)
     {
-        _db.AuditLogs.Add(new AuditLog
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        db.AuditLogs.Add(new AuditLog
         {
             Timestamp = DateTime.Now,
             Module = module,
@@ -109,6 +112,6 @@ public sealed class AuditLogService : IAuditLogService
             DetailJson = detailJson,
             Result = result,
         });
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }

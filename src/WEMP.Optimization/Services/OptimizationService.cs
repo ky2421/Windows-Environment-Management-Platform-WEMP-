@@ -15,13 +15,15 @@ namespace WEMP.Optimization.Services;
 /// 回滚基于最近一次成功备份恢复。
 /// </summary>
 public sealed class OptimizationService(
-    WempDbContext db,
-    OptimizationActionFactory actionFactory) : IOptimizationService
+    IDbContextFactory<WempDbContext> dbFactory,
+    OptimizationActionFactory actionFactory,
+    ISystemRestorePointService? systemRestorePoint = null) : IOptimizationService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<OptimizationItem>> GetItemsAsync(CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         return await db.OptimizationItems
             .OrderBy(i => i.Category)
             .ThenBy(i => i.SortOrder)
@@ -30,25 +32,49 @@ public sealed class OptimizationService(
 
     public async Task<OptimizationBatchResult> ApplyOneKeyAsync(CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var items = await db.OptimizationItems
             .Where(i => i.Enabled)
             .OrderBy(i => i.Category)
             .ThenBy(i => i.SortOrder)
             .ToListAsync(cancellationToken);
 
-        return await ApplyBatchAsync(items, "one-key", cancellationToken);
+        var restorePointId = await CreateRestorePointAsync("WEMP 一键优化", cancellationToken);
+        return await ApplyBatchAsync(items, "one-key", restorePointId, cancellationToken);
     }
 
     public async Task<OptimizationBatchResult> ApplySelectedAsync(
         IEnumerable<string> codes, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var codeSet = codes.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var items = await db.OptimizationItems
             .Where(i => codeSet.Contains(i.Code))
-            .OrderBy(i => i.SortOrder)
+            .OrderBy(i => i.Category)
+            .ThenBy(i => i.SortOrder)
             .ToListAsync(cancellationToken);
 
-        return await ApplyBatchAsync(items, "custom", cancellationToken);
+        var restorePointId = await CreateRestorePointAsync("WEMP 选定优化", cancellationToken);
+        return await ApplyBatchAsync(items, "selected", restorePointId, cancellationToken);
+    }
+
+    /// <summary>优化前创建系统还原点；失败（非管理员/未启用）时返回 null，不阻塞优化。</summary>
+    private async Task<long?> CreateRestorePointAsync(string description, CancellationToken cancellationToken)
+    {
+        if (systemRestorePoint is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await systemRestorePoint.CreateRestorePointAsync(description, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "系统还原点创建异常，本次优化不关联还原点");
+            return null;
+        }
     }
 
     public async Task<OptimizationBatchResult> RollbackAsync(
@@ -56,7 +82,6 @@ public sealed class OptimizationService(
     {
         var codeSet = codes.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var results = new List<OptimizationResult>();
-
         foreach (var code in codeSet)
         {
             results.Add(await RollbackOneAsync(code, cancellationToken));
@@ -67,6 +92,7 @@ public sealed class OptimizationService(
 
     public async Task<OptimizationBatchResult> RollbackAllAsync(CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         // 找到每个 Code 最近一次成功 apply 的记录
         var latest = await db.OptimizationRecords
             .Where(r => r.Action == "apply" && r.Result == "success")
@@ -77,9 +103,41 @@ public sealed class OptimizationService(
         return await RollbackAsync(latest, cancellationToken);
     }
 
+    public async Task<OptimizationBatchResult> RollbackRecordAsync(
+        long recordId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var record = await db.OptimizationRecords
+            .FirstOrDefaultAsync(r => r.Id == recordId, cancellationToken);
+        if (record is null)
+        {
+            return new OptimizationBatchResult(
+                [new OptimizationResult($"#{recordId}", $"#{recordId}", false, "记录不存在", 0, "rollback")]);
+        }
+
+        if (record.Action != "apply" || record.Result != "success" || string.IsNullOrEmpty(record.BeforeJson))
+        {
+            return new OptimizationBatchResult(
+                [new OptimizationResult(record.ItemCode, record.ItemCode, false, "该记录不支持回滚", 0, "rollback")]);
+        }
+
+        var item = await db.OptimizationItems
+            .FirstOrDefaultAsync(i => i.Code == record.ItemCode, cancellationToken);
+        if (item is null)
+        {
+            return new OptimizationBatchResult(
+                [new OptimizationResult(record.ItemCode, record.ItemCode, false, "知识库中不存在该条目", 0, "rollback")]);
+        }
+
+        // 恢复到该记录应用前的快照；审计 trigger 标记为 history 以区分手动回滚
+        var result = await RestoreSnapshotAsync(item, record.BeforeJson, "history", cancellationToken);
+        return new OptimizationBatchResult([result]);
+    }
+
     public async Task<IReadOnlyList<OptimizationRecord>> GetHistoryAsync(
         int count, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         return await db.OptimizationRecords
             .OrderByDescending(r => r.ExecutedAt)
             .Take(count)
@@ -89,19 +147,19 @@ public sealed class OptimizationService(
     // ---- 内部实现 ----
 
     private async Task<OptimizationBatchResult> ApplyBatchAsync(
-        IReadOnlyList<OptimizationItem> items, string trigger, CancellationToken cancellationToken)
+        IReadOnlyList<OptimizationItem> items, string trigger, long? restorePointId, CancellationToken cancellationToken)
     {
         var results = new List<OptimizationResult>();
         foreach (var item in items)
         {
-            results.Add(await ApplyOneAsync(item, trigger, cancellationToken));
+            results.Add(await ApplyOneAsync(item, trigger, restorePointId, cancellationToken));
         }
 
         return new OptimizationBatchResult(results);
     }
 
     private async Task<OptimizationResult> ApplyOneAsync(
-        OptimizationItem item, string trigger, CancellationToken cancellationToken)
+        OptimizationItem item, string trigger, long? restorePointId, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
         var action = actionFactory.Get(item.Category);
@@ -121,7 +179,7 @@ public sealed class OptimizationService(
             var after = await action.ApplyAsync(target, backup, cancellationToken);
 
             await RecordAsync(item.Code, "apply", trigger, "success",
-                backup, after, null, stopwatch.ElapsedMilliseconds, cancellationToken);
+                backup, after, null, restorePointId, stopwatch.ElapsedMilliseconds, cancellationToken);
             Log.Information("优化项 {Item} 应用成功（{Trigger}）", item.Code, trigger);
 
             return new OptimizationResult(item.Code, item.Name, true, "成功", stopwatch.ElapsedMilliseconds, "apply");
@@ -133,7 +191,7 @@ public sealed class OptimizationService(
         catch (Exception ex)
         {
             await RecordAsync(item.Code, "apply", trigger, "failed",
-                null, null, ex.Message, stopwatch.ElapsedMilliseconds, cancellationToken);
+                null, null, ex.Message, restorePointId, stopwatch.ElapsedMilliseconds, cancellationToken);
             Log.Error(ex, "优化项 {Item} 应用失败（{Trigger}）", item.Code, trigger);
 
             return new OptimizationResult(item.Code, item.Name, false, ex.Message, stopwatch.ElapsedMilliseconds, "apply");
@@ -142,6 +200,7 @@ public sealed class OptimizationService(
 
     private async Task<OptimizationResult> RollbackOneAsync(string code, CancellationToken cancellationToken)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var item = await db.OptimizationItems.FirstOrDefaultAsync(i => i.Code == code, cancellationToken);
         if (item is null)
         {
@@ -158,6 +217,13 @@ public sealed class OptimizationService(
             return new OptimizationResult(code, item.Name, false, "无可用备份，无法回滚", 0, "rollback");
         }
 
+        return await RestoreSnapshotAsync(item, latest.BeforeJson, "manual", cancellationToken);
+    }
+
+    /// <summary>用指定快照 JSON 恢复优化项并记录回滚审计。</summary>
+    private async Task<OptimizationResult> RestoreSnapshotAsync(
+        OptimizationItem item, string beforeJson, string trigger, CancellationToken cancellationToken)
+    {
         var stopwatch = Stopwatch.StartNew();
         var action = actionFactory.Get(item.Category);
         var target = OptimizationTarget.Parse(item.TargetJson)
@@ -165,14 +231,14 @@ public sealed class OptimizationService(
 
         try
         {
-            var backup = DeserializeBackup(item.Category, latest.BeforeJson);
+            var backup = DeserializeBackup(item.Category, beforeJson);
             await action.RestoreAsync(target, backup, cancellationToken);
 
-            await RecordAsync(code, "rollback", "manual", "success",
-                null, latest.BeforeJson, null, stopwatch.ElapsedMilliseconds, cancellationToken);
-            Log.Information("优化项 {Item} 回滚成功", code);
+            await RecordAsync(item.Code, "rollback", trigger, "success",
+                null, beforeJson, null, null, stopwatch.ElapsedMilliseconds, cancellationToken);
+            Log.Information("优化项 {Item} 回滚成功（{Trigger}）", item.Code, trigger);
 
-            return new OptimizationResult(code, item.Name, true, "已恢复原始状态", stopwatch.ElapsedMilliseconds, "rollback");
+            return new OptimizationResult(item.Code, item.Name, true, "已恢复原始状态", stopwatch.ElapsedMilliseconds, "rollback");
         }
         catch (OperationCanceledException)
         {
@@ -180,11 +246,11 @@ public sealed class OptimizationService(
         }
         catch (Exception ex)
         {
-            await RecordAsync(code, "rollback", "manual", "failed",
-                null, null, ex.Message, stopwatch.ElapsedMilliseconds, cancellationToken);
-            Log.Error(ex, "优化项 {Item} 回滚失败", code);
+            await RecordAsync(item.Code, "rollback", trigger, "failed",
+                null, null, ex.Message, null, stopwatch.ElapsedMilliseconds, cancellationToken);
+            Log.Error(ex, "优化项 {Item} 回滚失败（{Trigger}）", item.Code, trigger);
 
-            return new OptimizationResult(code, item.Name, false, ex.Message, stopwatch.ElapsedMilliseconds, "rollback");
+            return new OptimizationResult(item.Code, item.Name, false, ex.Message, stopwatch.ElapsedMilliseconds, "rollback");
         }
     }
 
@@ -196,9 +262,11 @@ public sealed class OptimizationService(
         object? before,
         object? after,
         string? detail,
+        long? restorePointId,
         long durationMs,
         CancellationToken cancellationToken)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         db.OptimizationRecords.Add(new OptimizationRecord
         {
             ItemCode = code,
@@ -209,6 +277,7 @@ public sealed class OptimizationService(
             AfterJson = Serialize(after),
             Detail = detail,
             DurationMs = durationMs,
+            RestorePointId = restorePointId,
             ExecutedAt = DateTime.Now,
         });
 
@@ -241,6 +310,15 @@ public sealed class OptimizationService(
             "disk" => JsonSerializer.Deserialize<DiskBackup>(json, JsonOptions),
             "power" => JsonSerializer.Deserialize<PowerBackup>(json, JsonOptions),
             "memory" => JsonSerializer.Deserialize<List<ProcessBackup>>(json, JsonOptions),
+            "visual" => JsonSerializer.Deserialize<VisualBackup>(json, JsonOptions),
+            "background" => JsonSerializer.Deserialize<BackgroundBackup>(json, JsonOptions),
+            "gpu" => JsonSerializer.Deserialize<List<GpuPreferenceEntry>>(json, JsonOptions),
+            "pagefile" => JsonSerializer.Deserialize<PagefileBackup>(json, JsonOptions),
+            "hags" => JsonSerializer.Deserialize<HagBackup>(json, JsonOptions),
+            "device" => JsonSerializer.Deserialize<DeviceBackup>(json, JsonOptions),
+            "timer" => JsonSerializer.Deserialize<TimerBackup>(json, JsonOptions),
+            "scheduled-task" => JsonSerializer.Deserialize<List<TaskBackup>>(json, JsonOptions),
+            "windows-feature" => JsonSerializer.Deserialize<List<FeatureBackup>>(json, JsonOptions),
             _ => null,
         };
 }

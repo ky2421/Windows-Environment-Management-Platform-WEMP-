@@ -1,0 +1,25 @@
+# 环境模板：Git 版本管理
+
+id: git
+name: Git 版本管理
+description: 代码版本管理（几乎所有开发通用）：Git + Git LFS。⚠ 下载源为 GitHub，需加速器
+deployWarning: "下载源为 GitHub，可能需要加速器"
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: git
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "git --version"
+      expected: "git version .*"
+
+prerequisites: []

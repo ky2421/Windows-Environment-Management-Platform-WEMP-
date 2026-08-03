@@ -1,0 +1,27 @@
+# 环境模板：数据库终端
+
+id: db-client
+name: 数据库终端
+description: DBeaver 通用数据库客户端（MySQL / PostgreSQL / SQLite 等）+ HeidiSQL
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: dbeaver
+    version: "24"
+    versionManager: direct
+    optional: false
+  - name: heidisql
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "winget list --id DBeaver.DBeaver"
+      expected: 'DBeaver'
+
+prerequisites: []

@@ -11,7 +11,7 @@ namespace WEMP.GameMode.Services;
 /// 游戏会话服务实现：识别游戏进程 → 进入会话（记录 + 系统切换）→ 退出会话（恢复 + 计时）。
 /// </summary>
 public sealed class GameSessionService(
-    WempDbContext db,
+    IDbContextFactory<WempDbContext> dbFactory,
     IGameStateSwitcher stateSwitcher,
     IGameDetector detector) : IGameSessionService, IAsyncDisposable
 {
@@ -31,12 +31,14 @@ public sealed class GameSessionService(
     {
         get
         {
+            using var db = dbFactory.CreateDbContext();
             var setting = db.AppSettings.AsNoTracking()
                 .FirstOrDefault(s => s.Key == AutoMonitorKey);
             return setting is not null && setting.Value == "true";
         }
         set
         {
+            using var db = dbFactory.CreateDbContext();
             var setting = db.AppSettings.FirstOrDefault(s => s.Key == AutoMonitorKey);
             if (setting is null)
             {
@@ -92,6 +94,7 @@ public sealed class GameSessionService(
                 StartedAt = DateTime.Now,
             };
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             db.GameSessions.Add(session);
             db.AuditLogs.Add(new AuditLog
             {
@@ -156,6 +159,10 @@ public sealed class GameSessionService(
                 _currentSnapshot = null;
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            db.GameSessions.Attach(session);
+            db.Entry(session).Property(s => s.EndedAt).IsModified = true;
+            db.Entry(session).Property(s => s.DurationSeconds).IsModified = true;
             db.AuditLogs.Add(new AuditLog
             {
                 Timestamp = DateTime.Now,
@@ -182,6 +189,7 @@ public sealed class GameSessionService(
 
     public async Task<IReadOnlyList<GameSession>> GetHistoryAsync(int count, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         return await db.GameSessions
             .OrderByDescending(s => s.StartedAt)
             .Take(count)

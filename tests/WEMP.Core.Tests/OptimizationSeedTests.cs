@@ -9,7 +9,7 @@ namespace WEMP.Core.Tests;
 /// <summary>优化知识库种子同步测试。</summary>
 public class OptimizationSeedTests
 {
-    private static WempDbContext CreateInMemoryDb()
+    private static (WempDbContext Db, TestDbFactory Factory) CreateInMemoryDb()
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -20,46 +20,47 @@ public class OptimizationSeedTests
 
         var db = new WempDbContext(options);
         db.Database.EnsureCreated();
-        return db;
+        return (db, new TestDbFactory(connection));
     }
 
     [Fact]
     public async Task EnsureSeedAsync_inserts_knowledge_base()
     {
-        using var db = CreateInMemoryDb();
-        var seed = new OptimizationSeedService(db);
+        var (db, factory) = CreateInMemoryDb();
+        var seed = new OptimizationSeedService(factory);
 
         var added = await seed.EnsureSeedAsync();
 
-        Assert.Equal(12, added);
-        Assert.Equal(12, await db.OptimizationItems.CountAsync());
+        Assert.Equal(72, added);
+        Assert.Equal(72, await db.OptimizationItems.CountAsync());
         Assert.All(await db.OptimizationItems.ToListAsync(), item =>
         {
             Assert.False(string.IsNullOrWhiteSpace(item.Code));
             Assert.False(string.IsNullOrWhiteSpace(item.Name));
             Assert.NotNull(item.TargetJson);
-            Assert.Equal(1, item.KbVersion);
+            Assert.Equal(7, item.KbVersion);
+            Assert.Contains(item.RiskLevel, new[] { "safe", "advanced", "aggressive" });
         });
     }
 
     [Fact]
     public async Task EnsureSeedAsync_is_idempotent()
     {
-        using var db = CreateInMemoryDb();
-        var seed = new OptimizationSeedService(db);
+        var (db, factory) = CreateInMemoryDb();
+        var seed = new OptimizationSeedService(factory);
 
         await seed.EnsureSeedAsync();
         var second = await seed.EnsureSeedAsync();
 
         Assert.Equal(0, second);
-        Assert.Equal(12, await db.OptimizationItems.CountAsync());
+        Assert.Equal(72, await db.OptimizationItems.CountAsync());
     }
 
     [Fact]
     public async Task Knowledge_base_covers_all_categories()
     {
-        using var db = CreateInMemoryDb();
-        var seed = new OptimizationSeedService(db);
+        var (db, factory) = CreateInMemoryDb();
+        var seed = new OptimizationSeedService(factory);
         await seed.EnsureSeedAsync();
 
         var categories = (await db.OptimizationItems
@@ -69,6 +70,8 @@ public class OptimizationSeedTests
             .OrderBy(c => c)
             .ToList();
 
-        Assert.Equal(["disk", "game", "memory", "network", "power", "registry", "service", "startup"], categories);
+        Assert.Equal(
+            ["appx", "background", "bios", "device", "disk", "game", "gpu", "guide", "hags", "memory", "network", "pagefile", "power", "registry", "scheduled-task", "service", "startup", "timer", "visual", "windows-feature"],
+            categories);
     }
 }

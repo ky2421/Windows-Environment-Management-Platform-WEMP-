@@ -32,6 +32,9 @@ public static class GameLibrary
         "pathofexile", "lostark", "throneandliberty",
     };
 
+    /// <summary>内置游戏进程名集合（不含 .exe 后缀），供检测器构建合并缓存。</summary>
+    public static IReadOnlyCollection<string> AllProcessNames => GameProcesses;
+
     /// <summary>进程名（可含 .exe 后缀）是否为已知游戏。</summary>
     public static bool IsGameProcess(string processName)
     {

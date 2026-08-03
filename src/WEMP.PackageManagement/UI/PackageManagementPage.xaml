@@ -7,7 +7,9 @@
              d:DesignHeight="700" d:DesignWidth="900">
 
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <ui:ResultToBrushConverter x:Key="ResultToBrush" xmlns:ui="clr-namespace:WEMP.PackageManagement.UI" />
+        <ui:InstalledIconConverter x:Key="InstalledIcon" xmlns:ui="clr-namespace:WEMP.PackageManagement.UI" />
     </UserControl.Resources>
 
     <Grid Margin="24">
@@ -18,11 +20,15 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0">
-            <TextBlock Text="软件包管理" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
-            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="#666666" />
+            <TextBlock Text="软件包管理" Style="{StaticResource PageTitleStyle}" VerticalAlignment="Center" />
+            <TextBlock Text="软件安装/卸载需要管理员权限的软件在非管理员下可能失败。"
+                       FontSize="12" Foreground="{DynamicResource WarningBrush}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       Visibility="{Binding ShowPermissionHint, Converter={StaticResource BoolToVis}}" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
         </DockPanel>
 
-        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="#666666" FontSize="12"
+        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
                    Text="基于 Windows 程序包管理器（winget）：同步已安装软件、一键升级、按分组批量安装。" />
 
         <TabControl Grid.Row="2" Margin="0,12,0,0">
@@ -34,7 +40,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <Button Content="重新同步" Command="{Binding RefreshInstalledCommand}"
+                        <Button Style="{StaticResource AccentButtonStyle}" Content="重新同步" Command="{Binding RefreshInstalledCommand}"
                                 DockPanel.Dock="Right" Padding="12,4" />
                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="220"
                                  VerticalContentAlignment="Center" />
@@ -43,17 +49,21 @@
                         <ItemsControl ItemsSource="{Binding Installed}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,2" Padding="8,4" Background="#F5F6F8" CornerRadius="4">
+                                    <Border Margin="0,2" Padding="8,4" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="4">
                                         <DockPanel>
-                                            <Button Content="卸载" Padding="10,2" DockPanel.Dock="Right"
+                                            <Button Style="{StaticResource DangerButtonStyle}" Content="卸载" Padding="10,2" DockPanel.Dock="Right"
                                                     Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                                <TextBlock FontSize="11" Foreground="#888888">
-                                                    <Run Text="{Binding PackageId, Mode=OneWay}" /><Run Text="  " />
-                                                    <Run Text="{Binding Version, Mode=OneWay}" />
-                                                </TextBlock>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Image Width="24" Height="24" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                       Source="{Binding IconPath, Converter={StaticResource InstalledIcon}}" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}">
+                                                        <Run Text="{Binding PackageId, Mode=OneWay}" /><Run Text="  " />
+                                                        <Run Text="{Binding Version, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
                                             </StackPanel>
                                         </DockPanel>
                                     </Border>
@@ -81,7 +91,7 @@
                         <ItemsControl ItemsSource="{Binding Upgradable}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,2" Padding="8,4" Background="#F5F6F8" CornerRadius="4">
+                                    <Border Margin="0,2" Padding="8,4" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="4">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -89,8 +99,8 @@
                                                 <ColumnDefinition Width="80" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Id}" FontSize="11" Foreground="#888888" />
-                                            <TextBlock Grid.Column="2" FontSize="11" Foreground="#666666" HorizontalAlignment="Right">
+                                            <TextBlock Grid.Column="1" Text="{Binding Id}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" />
+                                            <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right">
                                                 <Run Text="{Binding Version, Mode=OneWay}" /><Run Text=" → " /><Run Text="{Binding Available, Mode=OneWay}" />
                                             </TextBlock>
                                         </Grid>
@@ -128,7 +138,7 @@
                                                      CommandParameter="{Binding}">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#888888" />
+                                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" />
                                             </StackPanel>
                                         </RadioButton>
                                     </DataTemplate>
@@ -156,12 +166,12 @@
                         <ItemsControl ItemsSource="{Binding SelectedGroup.Items}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,2" Padding="8,4" Background="#F5F6F8" CornerRadius="4">
+                                    <Border Margin="0,2" Padding="8,4" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="4">
                                         <DockPanel>
-                                            <Button Content="移除" Padding="8,2" DockPanel.Dock="Right"
+                                            <Button Style="{StaticResource DangerButtonStyle}" Content="移除" Padding="8,2" DockPanel.Dock="Right"
                                                     Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
-                                            <TextBlock Text="{Binding PackageId}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding PackageId}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center" />
                                         </DockPanel>
                                     </Border>
                                 </DataTemplate>
@@ -177,14 +187,14 @@
                     <ItemsControl ItemsSource="{Binding Operations}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="0,2" Padding="8,4" Background="#F5F6F8" CornerRadius="4">
+                                <Border Margin="0,2" Padding="8,4" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="4">
                                     <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#888888">
+                                        <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}">
                                             <Run Text="{Binding StartedAt, StringFormat=MM-dd HH:mm:ss, Mode=OneWay}" />
                                         </TextBlock>
                                         <TextBlock FontWeight="SemiBold">
                                             <Run Text="{Binding Action, Mode=OneWay}" /><Run Text="  " />
-                                            <Run Text="{Binding PackageId, Mode=OneWay}" />
+                                            <Run Text="{Binding PackageId, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" />
                                         </TextBlock>
                                         <TextBlock Margin="8,0,0,0" FontSize="11"
                                                    Foreground="{Binding Result, Converter={StaticResource ResultToBrush}}">

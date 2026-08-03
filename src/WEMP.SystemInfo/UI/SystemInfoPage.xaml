@@ -3,58 +3,403 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="clr-namespace:WEMP.SystemInfo.UI"
              mc:Ignorable="d"
-             d:DesignHeight="600" d:DesignWidth="800">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="24">
+             d:DesignHeight="900" d:DesignWidth="940"
+             Background="White">
+    <UserControl.Resources>
 
-            <DockPanel>
-                <TextBlock Text="系统检测"
-                           FontSize="22" FontWeight="Bold" />
-                <Button DockPanel.Dock="Right"
-                        Content="重新检测"
-                        Command="{Binding DetectCommand}"
-                        Padding="14,6"
-                        HorizontalAlignment="Right" />
-                <TextBlock DockPanel.Dock="Right"
-                           Text="{Binding Status}"
-                           Foreground="#666666"
-                           VerticalAlignment="Center"
-                           Margin="0,0,16,0" />
-            </DockPanel>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-            <ItemsControl ItemsSource="{Binding Groups}" Margin="0,8,0,0">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Margin="0,12,0,0"
-                                Padding="16"
-                                Background="#F5F6F8"
-                                CornerRadius="6">
-                            <StackPanel>
-                                <TextBlock Text="{Binding Title}"
-                                           FontSize="15" FontWeight="Bold" />
-                                <ItemsControl ItemsSource="{Binding Rows}" Margin="0,6,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,4,0,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="160" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Label}"
-                                                           Foreground="#666666" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding Value}"
-                                                           TextWrapping="Wrap" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+        <ui:ScoreToArcConverter x:Key="ScoreToArc" />
+
+        <!-- 仪表盘卡片为小字号密排设计，覆盖全局 20px 行高，保持紧凑 -->
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="LineHeight" Value="Auto" />
+            <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+        </Style>
+
+        <!-- 卡片柔和阴影 -->
+        <DropShadowEffect x:Key="CardShadow" Color="#1F4B6E" BlurRadius="18" ShadowDepth="2" Opacity="0.14" />
+
+        <!-- 白底圆角卡片 -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Effect" Value="{StaticResource CardShadow}" />
+        </Style>
+
+        <!-- 蓝色线性图标 -->
+        <Style x:Key="IconStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="Foreground" Value="#2F7BD8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- 快速操作 / 推荐操作按钮 -->
+        <Style x:Key="QuickActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#2F7BD8" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#2B6FC7" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#24599F" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 右侧内容面板内的小型信息卡 -->
+        <Style x:Key="MiniInfoCard" TargetType="Border">
+            <Setter Property="Background" Value="#F5F8FC" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,9" />
+        </Style>
+
+        <!-- 环形仪表 -->
+        <LinearGradientBrush x:Key="RingGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#51A7F2" Offset="0" />
+            <GradientStop Color="#38C198" Offset="1" />
+        </LinearGradientBrush>
+
+        <!-- 存储进度条渐变 -->
+        <LinearGradientBrush x:Key="BarGradient" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#51A7F2" Offset="0" />
+            <GradientStop Color="#38C198" Offset="1" />
+        </LinearGradientBrush>
+
+        <!-- 底部波浪渐变 -->
+        <LinearGradientBrush x:Key="WaveGradient1" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFD9EEFF" Offset="0" />
+            <GradientStop Color="#FFBFE2FF" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="WaveGradient2" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FFEAF6FF" Offset="0" />
+            <GradientStop Color="#FFD2ECFF" Offset="1" />
+        </LinearGradientBrush>
+
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="White">
+        <StackPanel Margin="24,20,24,0">
+
+            <!-- 权限提示（非管理员时显示） -->
+            <Border Background="#FFF4E5" CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
+                    Visibility="{Binding ShowPermissionHint, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="部分操作（系统修复、还原点、垃圾清理、一键优化）需要管理员权限，非管理员运行时可能失败。"
+                           Foreground="#B54708" FontSize="11.5" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- 软件界面窗口 -->
+            <Border CornerRadius="14" Background="White">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="38" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- 窗口标题栏 -->
+                        <Border Grid.Row="0" Background="#F8FAFD" CornerRadius="14,14,0,0">
+                            <TextBlock Text="WEMP 主界面" FontSize="11" Foreground="#8A94A6" Margin="14,0,0,0" VerticalAlignment="Center" />
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <!-- 主内容面板 -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Background="White">
+                                <StackPanel Margin="14,12,14,14">
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="系统概览" FontSize="15" FontWeight="Bold" Foreground="#1F2328" />
+                                        <TextBlock Text="实时掌握系统状态"
+                                                   FontSize="10" Foreground="#9AA3B2"
+                                                   VerticalAlignment="Bottom" Margin="8,0,0,2" />
+                                        <TextBlock Text="{Binding Status}"
+                                                   FontSize="9.5" Foreground="#8A94A6"
+                                                   VerticalAlignment="Bottom" Margin="8,0,0,2" />
+                                    </StackPanel>
+
+                                    <!-- 4 个硬件信息卡 -->
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0" Style="{StaticResource MiniInfoCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="&#xE7F8;" Style="{StaticResource IconStyle}" FontSize="15" />
+                                                <TextBlock Text="{Binding OsShortName}" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,5,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding BuildVersion}" FontSize="9" FontFamily="{StaticResource MonoFont}" Foreground="#9AA3B2" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="2" Style="{StaticResource MiniInfoCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="&#xE7E2;" Style="{StaticResource IconStyle}" FontSize="15" />
+                                                <TextBlock Text="{Binding CpuShort}" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,5,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding CpuDetail}" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="4" Style="{StaticResource MiniInfoCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="&#xE8F2;" Style="{StaticResource IconStyle}" FontSize="15" />
+                                                <TextBlock Text="{Binding RamTotal}" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,5,0,0" />
+                                                <TextBlock Text="{Binding RamDetail}" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="6" Style="{StaticResource MiniInfoCard}">
+                                            <StackPanel>
+                                                <TextBlock Text="&#xE8B7;" Style="{StaticResource IconStyle}" FontSize="15" />
+                                                <TextBlock Text="{Binding StorageTotal}" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,5,0,0" />
+                                                <TextBlock Text="{Binding StorageDetail}" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 第二行：系统状态 / 快速操作 / 推荐操作 -->
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- 系统状态：环形仪表 -->
+                                        <Border Grid.Column="0" Style="{StaticResource CardStyle}" CornerRadius="10" Padding="12">
+                                            <StackPanel>
+                                                <TextBlock Text="系统状态" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" />
+                                                <Grid Width="120" Height="120" Margin="0,10,0,0" HorizontalAlignment="Center">
+                                                    <Ellipse Stroke="#E8EEF6" StrokeThickness="12" />
+                                                    <Path Stroke="{StaticResource RingGradient}"
+                                                          StrokeThickness="12"
+                                                          StrokeStartLineCap="Round"
+                                                          Data="{Binding Score, Converter={StaticResource ScoreToArc}}" />
+                                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Score, StringFormat={}{0:F0}}"
+                                                                   FontSize="26" FontWeight="Bold" Foreground="#1F2328"
+                                                                   HorizontalAlignment="Center" />
+                                                        <TextBlock Text="{Binding ScoreText}"
+                                                                   FontSize="12" FontWeight="SemiBold" Foreground="#38C198"
+                                                                   HorizontalAlignment="Center" Margin="0,-2,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                                <TextBlock Text="{Binding ScoreDesc}"
+                                                           FontSize="10" Foreground="#9AA3B2"
+                                                           HorizontalAlignment="Center" Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- 快速操作 -->
+                                        <Border Grid.Column="2" Style="{StaticResource CardStyle}" CornerRadius="10" Padding="12">
+                                            <StackPanel>
+                                                <TextBlock Text="快速操作" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,0,0,8" />
+                                                <Button Content="一键优化" Style="{StaticResource QuickActionButton}" Command="{Binding OneKeyOptimizeCommand}" />
+                                                <Button Content="清理垃圾" Style="{StaticResource QuickActionButton}" Command="{Binding CleanJunkCommand}" Margin="0,8,0,0" />
+                                                <Button Content="修复系统" Style="{StaticResource QuickActionButton}" Command="{Binding RepairSystemCommand}" Margin="0,8,0,0" />
+                                                <Button Content="创建恢复点" Style="{StaticResource QuickActionButton}" Command="{Binding CreateRestorePointCommand}" Margin="0,8,0,0" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- 推荐操作 -->
+                                        <Border Grid.Column="4" Style="{StaticResource CardStyle}" CornerRadius="10" Padding="12">
+                                            <StackPanel>
+                                                <TextBlock Text="推荐操作" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,0,0,4" />
+                                                <ItemsControl ItemsSource="{Binding Recommendations}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="0,6,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="52" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding Title}"
+                                                                           FontSize="10.5" Foreground="#5A6572"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <Button Grid.Column="1" Content="{Binding ButtonText}"
+                                                                        Style="{StaticResource QuickActionButton}"
+                                                                        Height="26" FontSize="10.5"
+                                                                        Command="{Binding DataContext.RecommendActionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                        CommandParameter="{Binding Action}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 第三行：系统信息 / 存储使用 -->
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- 系统信息 -->
+                                        <Border Grid.Column="0" Style="{StaticResource CardStyle}" CornerRadius="10" Padding="14,12">
+                                            <StackPanel>
+                                                <TextBlock Text="系统信息" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" Margin="0,0,0,8" />
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,5,6,5">
+                                                        <TextBlock Text="计算机名" FontSize="9.5" Foreground="#9AA3B2" />
+                                                        <TextBlock Text="{Binding ComputerName}" FontSize="11" Foreground="#1F2328" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="6,5,0,5">
+                                                        <TextBlock Text="系统版本" FontSize="9.5" Foreground="#9AA3B2" />
+                                                        <TextBlock Text="{Binding BuildVersion}" FontSize="11" FontFamily="{StaticResource MonoFont}" Foreground="#1F2328" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,5,6,5">
+                                                        <TextBlock Text="内存占用" FontSize="9.5" Foreground="#9AA3B2" />
+                                                        <TextBlock Text="{Binding MemUsedPercentText}" FontSize="11" Foreground="#1F2328" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,5,0,5">
+                                                        <TextBlock Text="CPU" FontSize="9.5" Foreground="#9AA3B2" />
+                                                        <TextBlock Text="{Binding CpuDetail}" FontSize="11" Foreground="#1F2328" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,5,6,0">
+                                                        <TextBlock Text="网络状态" FontSize="9.5" Foreground="#9AA3B2" />
+                                                        <TextBlock Text="{Binding NetworkState}" FontSize="11" Foreground="#1F2328" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="6,5,0,0">
+                                                        <TextBlock Text="启动时间" FontSize="9.5" Foreground="#9AA3B2" />
+                                                        <TextBlock Text="{Binding BootTimeText}" FontSize="11" Foreground="#1F2328" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- 存储使用 -->
+                                        <Border Grid.Column="2" Style="{StaticResource CardStyle}" CornerRadius="10" Padding="14,12">
+                                            <StackPanel>
+                                                <TextBlock Text="存储使用" FontSize="11.5" FontWeight="Bold" Foreground="#1F2328" />
+                                                <TextBlock Text="{Binding StorageTotal}" FontSize="20" FontWeight="Bold" Foreground="#1F2328" Margin="0,6,0,0" />
+                                                <ProgressBar Height="10"
+                                                             Value="{Binding StoragePercent}"
+                                                             Maximum="100"
+                                                             Margin="0,8,0,0"
+                                                             Background="Transparent" BorderThickness="0">
+                                                    <ProgressBar.Template>
+                                                        <ControlTemplate TargetType="ProgressBar">
+                                                            <Grid>
+                                                                <Border x:Name="PART_Track" Background="#E9EFF7" CornerRadius="5" />
+                                                                <Border x:Name="PART_Indicator"
+                                                                        Background="{StaticResource BarGradient}"
+                                                                        CornerRadius="5"
+                                                                        HorizontalAlignment="Left" />
+                                                            </Grid>
+                                                        </ControlTemplate>
+                                                    </ProgressBar.Template>
+                                                </ProgressBar>
+                                                <TextBlock Text="{Binding StorageBarText}"
+                                                           FontSize="9.5" Foreground="#9AA3B2" Margin="0,6,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+            <!-- ============ 区域 3：底部通栏横幅 ============ -->
+            <Border Style="{StaticResource CardStyle}" Padding="22,18" Margin="0,22,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="一站式管理" FontSize="20" FontWeight="Bold" Foreground="#1F2328" />
+                        <TextBlock Text="让 Windows 更流畅" FontSize="12" Foreground="#51A7F2" Margin="0,3,0,0" />
+                    </StackPanel>
+
+                    <UniformGrid Grid.Column="1" Columns="6">
+                        <StackPanel Margin="6,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE7F8;" Style="{StaticResource IconStyle}" FontSize="16" HorizontalAlignment="Left" />
+                            <TextBlock Text="系统检测" FontSize="11" FontWeight="SemiBold" Foreground="#1F2328" Margin="0,4,0,0" />
+                            <TextBlock Text="全面检测硬件与系统状态" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Margin="6,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE90F;" Style="{StaticResource IconStyle}" FontSize="16" HorizontalAlignment="Left" />
+                            <TextBlock Text="系统优化" FontSize="11" FontWeight="SemiBold" Foreground="#1F2328" Margin="0,4,0,0" />
+                            <TextBlock Text="深度清理与优化提升性能" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Margin="6,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE7FC;" Style="{StaticResource IconStyle}" FontSize="16" HorizontalAlignment="Left" />
+                            <TextBlock Text="游戏模式" FontSize="11" FontWeight="SemiBold" Foreground="#1F2328" Margin="0,4,0,0" />
+                            <TextBlock Text="为游戏玩家优化体验" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Margin="6,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE70F;" Style="{StaticResource IconStyle}" FontSize="16" HorizontalAlignment="Left" />
+                            <TextBlock Text="开发环境" FontSize="11" FontWeight="SemiBold" Foreground="#1F2328" Margin="0,4,0,0" />
+                            <TextBlock Text="一键配置开发环境" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Margin="6,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE7B8;" Style="{StaticResource IconStyle}" FontSize="16" HorizontalAlignment="Left" />
+                            <TextBlock Text="软件管理" FontSize="11" FontWeight="SemiBold" Foreground="#1F2328" Margin="0,4,0,0" />
+                            <TextBlock Text="软件安装更新卸载一站式" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Margin="6,0" VerticalAlignment="Center">
+                            <TextBlock Text="&#xE8B7;" Style="{StaticResource IconStyle}" FontSize="16" HorizontalAlignment="Left" />
+                            <TextBlock Text="备份恢复" FontSize="11" FontWeight="SemiBold" Foreground="#1F2328" Margin="0,4,0,0" />
+                            <TextBlock Text="智能备份与恢复数据无忧" FontSize="9" Foreground="#9AA3B2" Margin="0,2,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </UniformGrid>
+                </Grid>
+            </Border>
+
+            <!-- ============ 区域 4：底部标语 ============ -->
+            <TextBlock Text="WEMP · 让管理更简单，让系统更高效"
+                       FontSize="11" Foreground="#9AA3B2"
+                       HorizontalAlignment="Center"
+                       Margin="0,16,0,0" />
+
+            <!-- 底部淡蓝渐变波浪 -->
+            <Grid Height="120" Margin="0,8,-24,0">
+                <Viewbox Stretch="UniformToFill">
+                    <Grid Width="900" Height="110">
+                        <Path Fill="{StaticResource WaveGradient1}" Data="M0,58 C 130,18 260,78 430,48 C 590,18 750,68 900,38 L 900,110 L 0,110 Z" />
+                        <Path Fill="{StaticResource WaveGradient2}" Data="M0,82 C 170,48 330,98 510,72 C 680,52 800,92 900,68 L 900,110 L 0,110 Z" />
+                    </Grid>
+                </Viewbox>
+            </Grid>
 
         </StackPanel>
     </ScrollViewer>

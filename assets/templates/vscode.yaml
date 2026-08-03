@@ -1,0 +1,24 @@
+# 环境模板：VS Code
+
+id: vscode
+name: VS Code
+description: 微软跨平台代码编辑器（终端、调试器、扩展生态）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: vscode
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "code --version"
+      expected: '^\d+\.\d+\.\d+'
+
+prerequisites: []

@@ -19,6 +19,13 @@ public sealed class StartupAction : IOptimizationAction
         "gigabyte", "razer", "microsoft corporation", "mcafee", "norton", "nvidia", "realtek",
     ];
 
+    /// <summary>黑名单模式（mode=disable-all）默认保留项：声卡驱动、输入法。</summary>
+    private static readonly string[] DefaultRetainKeywords =
+    [
+        "realtek", "audio", "声卡", "snd", "输入法", "ime", "sogou", "qqpinyin",
+        "pinyin", "wubi", "chinese input", "tts",
+    ];
+
     public Task<object?> BackupAsync(OptimizationTarget target, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -56,7 +63,15 @@ public sealed class StartupAction : IOptimizationAction
 
         foreach (var entry in entries)
         {
-            if (!MatchesVendor(entry))
+            if (target.Mode == "disable-all")
+            {
+                // 黑名单模式：除声卡/输入法等保留项外全部禁用
+                if (MatchesAny(entry, target.RetainKeywords?.Count > 0 ? target.RetainKeywords : DefaultRetainKeywords))
+                {
+                    continue;
+                }
+            }
+            else if (!MatchesVendor(entry))
             {
                 continue;
             }
@@ -94,10 +109,16 @@ public sealed class StartupAction : IOptimizationAction
         return Task.CompletedTask;
     }
 
-    private static bool MatchesVendor(StartupEntry entry)
+    internal static bool MatchesVendor(StartupEntry entry)
     {
         var haystack = $"{entry.Name} {entry.Value}".ToLowerInvariant();
         return VendorKeywords.Any(haystack.Contains);
+    }
+
+    internal static bool MatchesAny(StartupEntry entry, IEnumerable<string> keywords)
+    {
+        var haystack = $"{entry.Name} {entry.Value}".ToLowerInvariant();
+        return keywords.Any(k => haystack.Contains(k.ToLowerInvariant()));
     }
 
     private static IEnumerable<(string Hive, string Path)> RunKeys()
