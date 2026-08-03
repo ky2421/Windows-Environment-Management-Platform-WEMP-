@@ -1,0 +1,26 @@
+# 环境模板：Docker 容器环境
+
+id: docker
+name: Docker 容器环境
+description: 容器化开发：Docker Desktop（一键部署 MySQL / Redis / Nginx 等服务）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: docker
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "docker --version"
+      expected: "Docker version .*"
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

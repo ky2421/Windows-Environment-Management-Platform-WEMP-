@@ -54,7 +54,7 @@ public class GameSessionServiceTests
         db.Database.EnsureCreated();
 
         var switcher = new FakeSwitcher();
-        var service = new GameSessionService(db, switcher, new FakeDetector(detectGame));
+        var service = new GameSessionService(new TestDbFactory(connection), switcher, new FakeDetector(detectGame));
         return (db, service, switcher);
     }
 

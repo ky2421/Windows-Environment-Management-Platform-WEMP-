@@ -19,37 +19,43 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private readonly WempDbContext _db;
+    private readonly IDbContextFactory<WempDbContext> _dbFactory;
     private readonly IToolInstaller _installer;
     private readonly IEnvironmentVariableService _envVars;
     private readonly IConfigFileWriter _configWriter;
     private readonly IToolValidator _validator;
 
     public DevEnvironmentService(
-        WempDbContext db,
+        IDbContextFactory<WempDbContext> dbFactory,
         IToolInstaller installer,
         IEnvironmentVariableService envVars,
         IConfigFileWriter configWriter,
         IToolValidator validator)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _installer = installer;
         _envVars = envVars;
         _configWriter = configWriter;
         _validator = validator;
     }
 
-    public Task<List<EnvTemplate>> GetTemplatesAsync(CancellationToken cancellationToken = default)
-        => _db.EnvTemplates.AsNoTracking().OrderBy(t => t.Id).ToListAsync(cancellationToken);
+    public async Task<List<EnvTemplate>> GetTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.EnvTemplates.AsNoTracking().OrderBy(t => t.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
 
-    public Task<List<EnvInstance>> GetInstancesAsync(CancellationToken cancellationToken = default)
-        => _db.EnvInstances
+    public async Task<List<EnvInstance>> GetInstancesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.EnvInstances
             .AsNoTracking()
             .Include(i => i.Tools)
             .Include(i => i.EnvVars)
             .Include(i => i.DeployLogs.OrderByDescending(l => l.Id).Take(50))
             .OrderByDescending(i => i.Id)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
 
     public async Task<int> EnsureSeedAsync(string? templatesDirectory = null, CancellationToken cancellationToken = default)
     {
@@ -61,15 +67,17 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
             return 0;
         }
 
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
         var now = DateTime.Now;
         var seeded = 0;
         foreach (var (key, content) in builtIns)
         {
             var spec = EnvTemplateParser.Parse(content);
-            var existing = await _db.EnvTemplates.FirstOrDefaultAsync(t => t.TemplateKey == key, cancellationToken).ConfigureAwait(false);
+            var existing = await db.EnvTemplates.FirstOrDefaultAsync(t => t.TemplateKey == key, cancellationToken).ConfigureAwait(false);
             if (existing is null)
             {
-                _db.EnvTemplates.Add(new EnvTemplate
+                db.EnvTemplates.Add(new EnvTemplate
                 {
                     TemplateKey = key,
                     Name = spec.Name,
@@ -94,20 +102,31 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
             }
         }
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         Log.Information("环境模板种子完成：{Count} 个模板", seeded);
         return seeded;
     }
 
-    public async Task<EnvInstance> DeployAsync(long templateId, string? instanceName = null, CancellationToken cancellationToken = default)
+    public async Task<EnvInstance> DeployAsync(long templateId, string? instanceName = null, IEnumerable<string>? selectedTools = null, IProgress<Models.DeployProgressInfo>? progress = null, CancellationToken cancellationToken = default)
     {
-        var template = await _db.EnvTemplates.FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken).ConfigureAwait(false)
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        var template = await db.EnvTemplates.FirstOrDefaultAsync(t => t.Id == templateId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"模板不存在：{templateId}");
 
         var spec = EnvTemplateParser.Parse(template.Content);
         var name = string.IsNullOrWhiteSpace(instanceName)
             ? $"{template.Name} {DateTime.Now:yyyyMMdd-HHmm}"
             : instanceName.Trim();
+
+        // 用户可选择安装工具子集；未选择时安装全部
+        var toolsToInstall = spec.Tools;
+        if (selectedTools?.Any() == true)
+        {
+            var set = new HashSet<string>(selectedTools, StringComparer.OrdinalIgnoreCase);
+            toolsToInstall = spec.Tools.Where(t => set.Contains(t.Name)).ToList();
+            Log.Information("按选择安装工具：{Selected} / {Total}", toolsToInstall.Count, spec.Tools.Count);
+        }
 
         var instance = new EnvInstance
         {
@@ -116,20 +135,23 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
             Name = name,
             Status = "deploying",
         };
-        _db.EnvInstances.Add(instance);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        db.EnvInstances.Add(instance);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var failed = false;
         try
         {
-            await LogStepAsync(instance.Id, "detect", "started", $"开始部署模板 {template.Name}（v{spec.Version}）", null, cancellationToken).ConfigureAwait(false);
+            await LogStepAsync(db, instance.Id, "detect", "started", $"开始部署模板 {template.Name}（v{spec.Version}）", null, cancellationToken).ConfigureAwait(false);
 
             // 步骤 2：工具安装（winget）
-            await LogStepAsync(instance.Id, "install", "started", $"待安装工具 {spec.Tools.Count} 个", null, cancellationToken).ConfigureAwait(false);
-            foreach (var tool in spec.Tools)
+            await LogStepAsync(db, instance.Id, "install", "started", $"待安装工具 {toolsToInstall.Count} 个", null, cancellationToken).ConfigureAwait(false);
+            for (var toolIndex = 0; toolIndex < toolsToInstall.Count; toolIndex++)
             {
+                var tool = toolsToInstall[toolIndex];
+                var toolProgress = toolsToInstall.Count == 1 ? 60 : 10 + (int)(toolIndex * 80.0 / (toolsToInstall.Count - 1));
+                progress?.Report(new Models.DeployProgressInfo(toolProgress, $"正在安装 {tool.Name}（{toolIndex + 1}/{toolsToInstall.Count}）"));
                 var result = await _installer.InstallAsync(tool.Name, tool.Version, tool.Optional, cancellationToken).ConfigureAwait(false);
-                _db.EnvTools.Add(new EnvTool
+                db.EnvTools.Add(new EnvTool
                 {
                     InstanceId = instance.Id,
                     ToolName = tool.Name,
@@ -145,23 +167,24 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
                     failed = true;
                 }
 
-                await LogStepAsync(instance.Id, "install", result.Success ? "success" : "failed", result.Message, null, cancellationToken).ConfigureAwait(false);
+                await LogStepAsync(db, instance.Id, "install", result.Success ? "success" : "failed", result.Message, null, cancellationToken).ConfigureAwait(false);
             }
 
             // 步骤 3：环境变量（user 作用域，回滚依据写入 env_envvars）
-            await LogStepAsync(instance.Id, "envvar", "started", $"待设置环境变量 {spec.EnvironmentVariables.Count} 个", null, cancellationToken).ConfigureAwait(false);
+            progress?.Report(new Models.DeployProgressInfo(90, "正在设置环境变量"));
+            await LogStepAsync(db, instance.Id, "envvar", "started", $"待设置环境变量 {spec.EnvironmentVariables.Count} 个", null, cancellationToken).ConfigureAwait(false);
             foreach (var env in spec.EnvironmentVariables)
             {
                 var original = _envVars.GetValue(env.Name, env.Scope);
                 var action = original is null ? "added" : (env.Overwrite ? "updated" : "skipped");
                 if (!env.Overwrite && original is not null)
                 {
-                    await LogStepAsync(instance.Id, "envvar", "skipped", $"环境变量 {env.Name} 已存在且未开启覆盖，跳过", null, cancellationToken).ConfigureAwait(false);
+                    await LogStepAsync(db, instance.Id, "envvar", "skipped", $"环境变量 {env.Name} 已存在且未开启覆盖，跳过", null, cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
                 _envVars.SetValue(env.Name, env.Value, env.Scope);
-                _db.EnvEnvVars.Add(new EnvEnvVar
+                db.EnvEnvVars.Add(new EnvEnvVar
                 {
                     InstanceId = instance.Id,
                     VarName = env.Name,
@@ -171,21 +194,23 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
                     OriginalValue = original,
                     AppliedAt = DateTime.Now,
                 });
-                await LogStepAsync(instance.Id, "envvar", "success", $"设置环境变量 {env.Name}（{action}）", null, cancellationToken).ConfigureAwait(false);
+                await LogStepAsync(db, instance.Id, "envvar", "success", $"设置环境变量 {env.Name}（{action}）", null, cancellationToken).ConfigureAwait(false);
             }
 
             // 步骤 4：配置文件写入
+            progress?.Report(new Models.DeployProgressInfo(93, "正在写入配置文件"));
             var configFiles = spec.Config?.Files ?? [];
-            await LogStepAsync(instance.Id, "config", "started", $"待写入配置文件 {configFiles.Count} 个", null, cancellationToken).ConfigureAwait(false);
+            await LogStepAsync(db, instance.Id, "config", "started", $"待写入配置文件 {configFiles.Count} 个", null, cancellationToken).ConfigureAwait(false);
             foreach (var file in configFiles)
             {
                 var result = _configWriter.Write(file.Path, file.Values, file.Strategy);
-                await LogStepAsync(instance.Id, "config", "success", $"写入 {result.Path}（{(result.Created ? "新建" : "合并")}，{result.KeysWritten} 项）", null, cancellationToken).ConfigureAwait(false);
+                await LogStepAsync(db, instance.Id, "config", "success", $"写入 {result.Path}（{(result.Created ? "新建" : "合并")}，{result.KeysWritten} 项）", null, cancellationToken).ConfigureAwait(false);
             }
 
             // 步骤 5：验证命令
+            progress?.Report(new Models.DeployProgressInfo(96, "正在执行验证命令"));
             var validationCommands = spec.Validation?.Commands ?? [];
-            await LogStepAsync(instance.Id, "validate", "started", $"待执行验证命令 {validationCommands.Count} 条", null, cancellationToken).ConfigureAwait(false);
+            await LogStepAsync(db, instance.Id, "validate", "started", $"待执行验证命令 {validationCommands.Count} 条", null, cancellationToken).ConfigureAwait(false);
             var validationMessages = new List<string>();
             foreach (var cmd in validationCommands)
             {
@@ -196,7 +221,7 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
                 }
 
                 validationMessages.Add($"{cmd.Command} => {(result.Passed ? "通过" : result.Message ?? "失败")}");
-                await LogStepAsync(instance.Id, "validate", result.Passed ? "success" : "failed",
+                await LogStepAsync(db, instance.Id, "validate", result.Passed ? "success" : "failed",
                     result.Passed ? $"验证通过：{cmd.Command}" : $"验证失败：{cmd.Command} {result.Message}", null, cancellationToken).ConfigureAwait(false);
             }
 
@@ -204,12 +229,13 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
             instance.LastValidationResult = validationMessages.Count == 0 ? "无验证命令" : string.Join("；", validationMessages);
 
             // 步骤 6：快照（工具与环境变量状态）
-            await LogStepAsync(instance.Id, "snapshot", "started", "生成环境快照", null, cancellationToken).ConfigureAwait(false);
-            var toolState = _db.EnvTools.Where(t => t.InstanceId == instance.Id)
+            progress?.Report(new Models.DeployProgressInfo(99, "正在生成环境快照"));
+            await LogStepAsync(db, instance.Id, "snapshot", "started", "生成环境快照", null, cancellationToken).ConfigureAwait(false);
+            var toolState = db.EnvTools.Where(t => t.InstanceId == instance.Id)
                 .Select(t => new { t.ToolName, t.Status, t.InstalledVersion }).ToList();
-            var envvarState = _db.EnvEnvVars.Where(v => v.InstanceId == instance.Id)
+            var envvarState = db.EnvEnvVars.Where(v => v.InstanceId == instance.Id)
                 .Select(v => new { v.VarName, v.VarValue, v.Action }).ToList();
-            _db.EnvSnapshots.Add(new EnvSnapshot
+            db.EnvSnapshots.Add(new EnvSnapshot
             {
                 InstanceId = instance.Id,
                 Kind = "after",
@@ -217,7 +243,7 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
                 ToolStateJson = JsonSerializer.Serialize(toolState, JsonOptions),
                 EnvvarStateJson = JsonSerializer.Serialize(envvarState, JsonOptions),
             });
-            await LogStepAsync(instance.Id, "snapshot", "success", "环境快照已生成", null, cancellationToken).ConfigureAwait(false);
+            await LogStepAsync(db, instance.Id, "snapshot", "success", "环境快照已生成", null, cancellationToken).ConfigureAwait(false);
 
             instance.Status = failed ? "failed" : "deployed";
             if (instance.Status == "deployed")
@@ -225,13 +251,14 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
                 instance.DeployedAt = DateTime.Now;
             }
 
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            progress?.Report(new Models.DeployProgressInfo(100, failed ? "部署完成（部分步骤失败）" : "部署完成"));
             return instance;
         }
         catch (Exception ex)
         {
             instance.Status = "failed";
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             Log.Error(ex, "环境部署失败：{Name}", name);
             throw;
         }
@@ -239,7 +266,9 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
 
     public async Task<ValidationResult> ValidateAsync(long instanceId, CancellationToken cancellationToken = default)
     {
-        var instance = await _db.EnvInstances
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        var instance = await db.EnvInstances
             .Include(i => i.Template)
             .FirstOrDefaultAsync(i => i.Id == instanceId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"实例不存在：{instanceId}");
@@ -262,13 +291,15 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
 
         instance.LastValidatedAt = DateTime.Now;
         instance.LastValidationResult = string.Join("；", results);
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return new ValidationResult(allPassed, string.Join("；", results), allPassed ? null : "存在未通过的验证命令");
     }
 
     public async Task<EnvInstance?> RollbackAsync(long instanceId, CancellationToken cancellationToken = default)
     {
-        var instance = await _db.EnvInstances
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        var instance = await db.EnvInstances
             .Include(i => i.EnvVars)
             .FirstOrDefaultAsync(i => i.Id == instanceId, cancellationToken).ConfigureAwait(false);
         if (instance is null)
@@ -292,14 +323,14 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
 
         instance.Status = "rolled_back";
         instance.Note = $"回滚于 {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         Log.Information("环境实例已回滚：{Name}（{Id}）", instance.Name, instance.Id);
         return instance;
     }
 
-    private async Task LogStepAsync(long instanceId, string step, string status, string? message, string? detailJson, CancellationToken cancellationToken)
+    private static async Task LogStepAsync(WempDbContext db, long instanceId, string step, string status, string? message, string? detailJson, CancellationToken cancellationToken)
     {
-        _db.EnvDeployLogs.Add(new EnvDeployLog
+        db.EnvDeployLogs.Add(new EnvDeployLog
         {
             InstanceId = instanceId,
             Step = step,
@@ -309,6 +340,6 @@ public sealed class DevEnvironmentService : IDevEnvironmentService
             StartedAt = DateTime.Now,
             FinishedAt = DateTime.Now,
         });
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }

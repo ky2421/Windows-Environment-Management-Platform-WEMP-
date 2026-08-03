@@ -38,4 +38,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- 内置环境模板：随测试项目复制，验证全部模板可解析且清单覆盖 -->
+  <ItemGroup>
+    <None Include="..\..\assets\templates\*.yaml"
+          Link="assets\templates\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,37 @@
+# 环境模板：常用开发 IDE
+
+id: ide-common
+name: 常用开发 IDE
+description: 代码编辑器 / IDE（非运行环境，可选安装）：VS Code、IDEA、PyCharm、WebStorm、CLion、Android Studio
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: vscode
+    versionManager: direct
+    optional: true
+  - name: intellij
+    versionManager: direct
+    optional: true
+  - name: pycharm
+    versionManager: direct
+    optional: true
+  - name: webstorm
+    versionManager: direct
+    optional: true
+  - name: clion
+    versionManager: direct
+    optional: true
+  - name: androidstudio
+    versionManager: direct
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands: []
+
+prerequisites: []

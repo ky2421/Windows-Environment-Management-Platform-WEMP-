@@ -1,0 +1,24 @@
+# 环境模板：Nginx 服务器
+
+id: nginx
+name: Nginx 服务器
+description: 本地 Web 反向代理 / 静态服务器
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: nginx
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "nginx -v"
+      expected: "nginx version: .*"
+
+prerequisites: []

@@ -37,6 +37,9 @@ public sealed partial class ServiceAction : IOptimizationAction
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        // 目标启动类型：默认禁用；startMode 可指定 manual/auto（如 Edge 更新服务改手动）
+        var startMode = string.IsNullOrWhiteSpace(target.StartMode) ? "disabled" : target.StartMode.Trim();
+
         foreach (var service in target.GetServices())
         {
             if (string.IsNullOrWhiteSpace(service))
@@ -44,19 +47,19 @@ public sealed partial class ServiceAction : IOptimizationAction
                 continue;
             }
 
-            // 禁用并停止服务
+            // 设置启动类型
             var config = await ProcessRunner.RunAsync(
-                "sc.exe", $"config {service} start= disabled", cancellationToken);
+                "sc.exe", $"config {service} start= {startMode}", cancellationToken);
             if (!config.Success)
             {
                 throw new InvalidOperationException(
-                    $"禁用服务 {service} 失败（需管理员权限）：{config.Output.Trim()}");
+                    $"设置服务 {service} 启动类型失败（需管理员权限）：{config.Output.Trim()}");
             }
 
+            // 停止服务；1062 = 服务未运行，可忽略
             var stop = await ProcessRunner.RunAsync("sc.exe", $"stop {service}", cancellationToken);
             if (!stop.Success && !stop.Output.Contains("1062", StringComparison.OrdinalIgnoreCase))
             {
-                // 1062 = 服务未运行，可忽略
                 throw new InvalidOperationException($"停止服务 {service} 失败：{stop.Output.Trim()}");
             }
         }

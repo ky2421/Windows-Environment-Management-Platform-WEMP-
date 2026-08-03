@@ -9,7 +9,7 @@ namespace WEMP.Core.Tests;
 /// <summary>快照持久化：检测结果应完整映射到 system_snapshots 表。</summary>
 public class SnapshotRepositoryTests
 {
-    private static WempDbContext CreateInMemoryDb()
+    private static (WempDbContext Db, TestDbFactory Factory) CreateInMemoryDb()
     {
         var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -20,7 +20,7 @@ public class SnapshotRepositoryTests
 
         var db = new WempDbContext(options);
         db.Database.EnsureCreated();
-        return db;
+        return (db, new TestDbFactory(connection));
     }
 
     private static SystemInfoSnapshot CreateSampleSnapshot() => new()
@@ -59,8 +59,8 @@ public class SnapshotRepositoryTests
     [Fact]
     public async Task SaveAsync_persists_full_detection_result()
     {
-        using var db = CreateInMemoryDb();
-        var repository = new SnapshotRepository(db);
+        var (db, factory) = CreateInMemoryDb();
+        var repository = new SnapshotRepository(factory);
         var snapshot = CreateSampleSnapshot();
 
         var id = await repository.SaveAsync(snapshot);
@@ -89,8 +89,8 @@ public class SnapshotRepositoryTests
     [Fact]
     public async Task GetRecentAsync_returns_latest_first()
     {
-        using var db = CreateInMemoryDb();
-        var repository = new SnapshotRepository(db);
+        var (db, factory) = CreateInMemoryDb();
+        var repository = new SnapshotRepository(factory);
 
         var first = CreateSampleSnapshot();
         var second = CreateSampleSnapshot();
@@ -103,5 +103,38 @@ public class SnapshotRepositoryTests
         var recent = await repository.GetRecentAsync(2);
         Assert.Equal(2, recent.Count);
         Assert.Equal("Second OS", recent[0].OsName);
+    }
+
+    [Fact]
+    public async Task SaveAsync_keeps_only_latest_30_snapshots()
+    {
+        var (db, factory) = CreateInMemoryDb();
+        var repository = new SnapshotRepository(factory);
+
+        for (var i = 0; i < 40; i++)
+        {
+            await repository.SaveAsync(CreateSampleSnapshot());
+        }
+
+        var remaining = await db.SystemSnapshots.OrderBy(s => s.Id).ToListAsync();
+        Assert.Equal(SnapshotRepository.MaxSnapshots, remaining.Count);
+        // 保留最近 30 条（Id 11..40），最早的 10 条被清理
+        Assert.Equal(11, remaining[0].Id);
+        Assert.Equal(40, remaining[^1].Id);
+    }
+
+    [Fact]
+    public async Task SaveAsync_keeps_all_when_below_limit()
+    {
+        var (db, factory) = CreateInMemoryDb();
+        var repository = new SnapshotRepository(factory);
+
+        for (var i = 0; i < 5; i++)
+        {
+            await repository.SaveAsync(CreateSampleSnapshot());
+        }
+
+        var remaining = await db.SystemSnapshots.ToListAsync();
+        Assert.Equal(5, remaining.Count);
     }
 }

@@ -14,11 +14,11 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0">
-            <TextBlock Text="日志中心" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
-            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="#666666" />
+            <TextBlock Text="日志中心" Style="{StaticResource PageTitleStyle}" VerticalAlignment="Center" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
         </DockPanel>
 
-        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="#666666" FontSize="12"
+        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
                    Text="审计日志查询与统计、Windows 事件日志聚合、异常规则扫描（崩溃 / 意外关机 / 错误风暴 / 审计失败率）。" />
 
         <TabControl Grid.Row="2" Margin="0,12,0,0">
@@ -36,7 +36,7 @@
                                  VerticalContentAlignment="Center" ToolTip="搜索动作 / 目标 / 消息" />
                     </DockPanel>
 
-                    <ListBox ItemsSource="{Binding AuditItems}" BorderBrush="#DDDDDD">
+                    <ListBox ItemsSource="{Binding AuditItems}" BorderBrush="{DynamicResource ControlBorderBrush}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,3">
@@ -48,13 +48,15 @@
                                         <ColumnDefinition Width="70" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                    <TextBlock Grid.Column="0" FontSize="12" FontFamily="{StaticResource MonoFont}"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
                                                Text="{Binding Timestamp, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
                                     <TextBlock Grid.Column="1" FontSize="12" Text="{Binding Module}" />
-                                    <TextBlock Grid.Column="2" FontSize="12" Foreground="#666666" Text="{Binding Level}" />
+                                    <TextBlock Grid.Column="2" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Text="{Binding Level}" />
                                     <TextBlock Grid.Column="3" FontSize="12" FontWeight="SemiBold" Text="{Binding Action}" />
                                     <TextBlock Grid.Column="4" FontSize="12" Text="{Binding Result}" />
-                                    <TextBlock Grid.Column="5" FontSize="12" Foreground="#666666"
+                                    <TextBlock Grid.Column="5" FontSize="12" FontFamily="{StaticResource MonoFont}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                                Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
                                 </Grid>
                             </DataTemplate>
@@ -67,11 +69,11 @@
             <TabItem Header="系统事件">
                 <DockPanel Margin="8">
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                        <Button Content="拉取最近 24 小时事件" Padding="12,4" DockPanel.Dock="Right"
+                        <Button Style="{StaticResource AccentButtonStyle}" Content="拉取最近 24 小时事件" Padding="12,4" DockPanel.Dock="Right"
                                 Command="{Binding AggregateEventsCommand}" />
                         <TextBlock Text="Windows Application / System 事件日志聚合（自动去重）" VerticalAlignment="Center" />
                     </DockPanel>
-                    <ListBox ItemsSource="{Binding EventItems}" BorderBrush="#DDDDDD">
+                    <ListBox ItemsSource="{Binding EventItems}" BorderBrush="{DynamicResource ControlBorderBrush}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,3">
@@ -82,12 +84,12 @@
                                         <ColumnDefinition Width="70" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"
                                                Text="{Binding EventTime, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" />
                                     <TextBlock Grid.Column="1" FontSize="12" Text="{Binding Level}" />
                                     <TextBlock Grid.Column="2" FontSize="12" FontWeight="SemiBold" Text="{Binding Provider}" />
                                     <TextBlock Grid.Column="3" FontSize="12" Text="{Binding EventId}" />
-                                    <TextBlock Grid.Column="4" FontSize="12" Foreground="#666666"
+                                    <TextBlock Grid.Column="4" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                                Text="{Binding Message}" TextTrimming="CharacterEllipsis" />
                                 </Grid>
                             </DataTemplate>
@@ -107,7 +109,7 @@
                         </StackPanel>
                         <TextBlock Text="规则：应用崩溃 / 意外关机 / 单源错误风暴 / 审计失败率过高（24h 去重）" VerticalAlignment="Center" />
                     </DockPanel>
-                    <ListBox ItemsSource="{Binding AnomalyItems}" SelectedItem="{Binding SelectedAnomaly}" BorderBrush="#DDDDDD">
+                    <ListBox ItemsSource="{Binding AnomalyItems}" SelectedItem="{Binding SelectedAnomaly}" BorderBrush="{DynamicResource ControlBorderBrush}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,3">
@@ -117,7 +119,8 @@
                                         <ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" FontSize="12" Foreground="#888888"
+                                    <TextBlock Grid.Column="0" FontSize="12" FontFamily="{StaticResource MonoFont}"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
                                                Text="{Binding DetectedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" />
                                     <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" Text="{Binding Severity}" />
                                     <TextBlock Grid.Column="2" FontSize="12" Text="{Binding RuleCode}" />

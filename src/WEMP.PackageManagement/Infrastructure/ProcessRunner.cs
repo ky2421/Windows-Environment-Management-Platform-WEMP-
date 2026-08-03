@@ -5,12 +5,13 @@ namespace WEMP.PackageManagement.Infrastructure;
 /// <summary>外部进程执行器：静默运行并捕获标准输出（UTF-8）。</summary>
 public static class ProcessRunner
 {
-    /// <summary>执行命令并等待退出，返回退出码与输出（尾部截断）。</summary>
+    /// <summary>执行命令并等待退出，返回退出码与输出（尾部截断）。<paramref name="environment"/> 非空时覆盖对应环境变量（其余继承当前进程）。</summary>
     public static async Task<CommandResult> RunAsync(
         string fileName,
         string arguments,
         CancellationToken cancellationToken,
-        int timeoutSeconds = 180)
+        int timeoutSeconds = 180,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -23,6 +24,14 @@ public static class ProcessRunner
             StandardOutputEncoding = System.Text.Encoding.UTF8,
             StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
+
+        if (environment is not null)
+        {
+            foreach (var pair in environment)
+            {
+                startInfo.Environment[pair.Key] = pair.Value;
+            }
+        }
 
         using var process = new Process { StartInfo = startInfo };
         var output = new System.Text.StringBuilder();

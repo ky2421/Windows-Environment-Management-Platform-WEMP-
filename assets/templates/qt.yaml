@@ -1,0 +1,28 @@
+# 环境模板：Qt 跨平台桌面开发
+
+id: qt
+name: Qt 开发环境
+description: C++ 跨平台桌面程序框架（Qt Creator / Qt 库）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: qt
+    versionManager: direct
+    optional: true
+
+environmentVariables:
+  - name: QT_HOME
+    value: "{{qt.installDir}}"
+    scope: user
+    overwrite: false
+
+config:
+  files: []
+
+validation:
+  commands: []
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

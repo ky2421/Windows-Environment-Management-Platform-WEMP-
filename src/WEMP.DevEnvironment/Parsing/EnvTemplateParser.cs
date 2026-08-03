@@ -11,6 +11,9 @@ namespace WEMP.DevEnvironment.Parsing;
 /// </summary>
 public static class EnvTemplateParser
 {
+    // YamlDotNet 的 Deserializer 实例非线程安全：必须串行化反序列化，
+    // 否则并发 Parse 会损坏其内部状态（Dictionary 并发修改异常）。
+    private static readonly object SyncRoot = new();
     private static readonly IDeserializer Deserializer = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
@@ -25,7 +28,11 @@ public static class EnvTemplateParser
 
         try
         {
-            var spec = Deserializer.Deserialize<Models.EnvTemplateSpec>(yaml);
+            Models.EnvTemplateSpec spec;
+            lock (SyncRoot)
+            {
+                spec = Deserializer.Deserialize<Models.EnvTemplateSpec>(yaml);
+            }
             if (string.IsNullOrWhiteSpace(spec.Id) || string.IsNullOrWhiteSpace(spec.Name))
             {
                 throw new InvalidDataException("模板缺少必填字段 id / name");

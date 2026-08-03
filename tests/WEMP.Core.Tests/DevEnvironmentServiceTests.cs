@@ -114,7 +114,7 @@ public class DevEnvironmentServiceTests
         var config = new FakeConfigWriter();
         var validator = new FakeValidator();
 
-        var service = new DevEnvironmentService(db, installer, envVars, config, validator);
+        var service = new DevEnvironmentService(new TestDbFactory(connection), installer, envVars, config, validator);
         return (db, service, installer, envVars, config, validator);
     }
 
@@ -171,6 +171,35 @@ public class DevEnvironmentServiceTests
         var loaded = await service.GetInstancesAsync();
         var loadedInstance = Assert.Single(loaded);
         Assert.Equal(2, loadedInstance.Tools.Count);
+    }
+
+    [Fact]
+    public async Task Deploy_reports_progress_sequence()
+    {
+        var (db, service, _, _, _, _) = CreateHarness();
+        var template = await SeedTemplateAsync(db);
+        var reports = new List<WEMP.DevEnvironment.Models.DeployProgressInfo>();
+        var progress = new Progress<WEMP.DevEnvironment.Models.DeployProgressInfo>(reports.Add);
+
+        var instance = await service.DeployAsync(template.Id, progress: progress);
+
+        Assert.Equal("deployed", instance.Status);
+        Assert.NotEmpty(reports);
+        // 首条为第一个工具安装，末条为完成
+        Assert.Contains("正在安装 node", reports[0].Message);
+        Assert.Equal(100, reports[^1].Percent);
+        // 百分比单调递增
+        for (var i = 1; i < reports.Count; i++)
+        {
+            Assert.True(reports[i].Percent >= reports[i - 1].Percent,
+                $"进度回退：{reports[i - 1].Percent} → {reports[i].Percent}（{reports[i].Message}）");
+        }
+
+        // 工具安装阶段覆盖 10-90，后续步骤 90-100
+        Assert.Contains(reports, r => r.Percent == 90 && r.Message.Contains("环境变量"));
+        Assert.Contains(reports, r => r.Percent == 93 && r.Message.Contains("配置文件"));
+        Assert.Contains(reports, r => r.Percent == 96 && r.Message.Contains("验证"));
+        Assert.Contains(reports, r => r.Percent == 99 && r.Message.Contains("快照"));
     }
 
     [Fact]
@@ -302,5 +331,36 @@ public class DevEnvironmentServiceTests
 
         var count = await service.EnsureSeedAsync(Path.Combine(Path.GetTempPath(), $"wemp-missing-{Guid.NewGuid():N}"));
         Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public async Task Rollback_returns_null_for_missing_instance()
+    {
+        var (_, service, _, _, _, _) = CreateHarness();
+
+        var result = await service.RollbackAsync(999);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task Deploy_failure_writes_failed_step_logs()
+    {
+        var (db, service, installer, _, _, _) = CreateHarness();
+        var template = await SeedTemplateAsync(db);
+        installer.Handler = (name, optional) =>
+            Task.FromResult(name == "node"
+                ? ToolInstallResult.Failed("node 安装失败")
+                : ToolInstallResult.Skipped("skip"));
+
+        var instance = await service.DeployAsync(template.Id);
+
+        Assert.Equal("failed", instance.Status);
+        var logs = await db.EnvDeployLogs.Where(l => l.InstanceId == instance.Id).ToListAsync();
+
+        // 工具失败步骤记录为 failed；后续步骤仍按流水线执行并记录
+        Assert.Contains(logs, l => l.Step == "install" && l.Status == "failed" && l.Message!.Contains("安装失败"));
+        Assert.Contains(logs, l => l.Step == "detect" && l.Status == "started");
+        Assert.Contains(logs, l => l.Step == "snapshot" && l.Status == "success");
     }
 }

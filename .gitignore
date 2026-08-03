@@ -55,6 +55,12 @@ $RECYCLE.BIN/
 *.db-shm
 data/
 
+# === WEMP build/publish artifacts ===
+dist/
+backup/
+test-results/
+\{2\}
+
 # === Rider / VS Code ===
 .idea/
 *.sln.iml

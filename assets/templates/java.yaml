@@ -1,0 +1,31 @@
+# 环境模板：Java 开发环境
+
+id: java-21
+name: Java 开发环境
+description: OpenJDK 21 LTS + Maven / Gradle 构建工具
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: jdk
+    version: "21"
+    versionManager: direct    # direct / jabba
+    optional: false
+  - name: maven
+    optional: true
+  - name: gradle
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "java -version 2>&1"
+      expected: 'openjdk version "21.*'
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

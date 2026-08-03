@@ -24,6 +24,7 @@ public sealed partial class WmiSystemInfoProvider : ISystemInfoProvider
             Gpus = DetectGpus(),
             Memory = DetectMemory(),
             DevTools = await DevEnvironmentDetector.DetectAsync(cancellationToken).ConfigureAwait(false),
+            Network = DetectNetwork(),
         };
 
         (snapshot.Disks, snapshot.Volumes) = DetectDisks();
@@ -35,7 +36,7 @@ public sealed partial class WmiSystemInfoProvider : ISystemInfoProvider
     {
         using var os = Query(
             CimV2,
-            "SELECT Caption, Version, BuildNumber, OSArchitecture, InstallDate FROM Win32_OperatingSystem");
+            "SELECT Caption, Version, BuildNumber, OSArchitecture, InstallDate, LastBootUpTime FROM Win32_OperatingSystem");
         using var computer = Query(
             CimV2,
             "SELECT BootupState FROM Win32_ComputerSystem");
@@ -51,6 +52,7 @@ public sealed partial class WmiSystemInfoProvider : ISystemInfoProvider
             BootMode = GetString(computer.Cast<ManagementObject>().FirstOrDefault(), "BootupState"),
             SecureBoot = DetectSecureBoot(),
             InstallDate = ParseCimDateTime(GetString(row, "InstallDate")),
+            LastBootUpTime = ParseCimDateTime(GetString(row, "LastBootUpTime")),
         };
     }
 
@@ -180,6 +182,33 @@ public sealed partial class WmiSystemInfoProvider : ISystemInfoProvider
         {
             return false;
         }
+    }
+
+    /// <summary>枚举处于连接状态的非回环网络适配器。</summary>
+    private static NetworkInfo DetectNetwork()
+    {
+        var adapters = new List<string>();
+        try
+        {
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up
+                    && nic.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+                {
+                    adapters.Add(nic.Name);
+                }
+            }
+        }
+        catch (System.Net.NetworkInformation.NetworkInformationException)
+        {
+            // 无法枚举适配器时视为未连接
+        }
+
+        return new NetworkInfo
+        {
+            IsAvailable = adapters.Count > 0,
+            ActiveAdapters = adapters,
+        };
     }
 
     // ---- WMI 工具方法 ----

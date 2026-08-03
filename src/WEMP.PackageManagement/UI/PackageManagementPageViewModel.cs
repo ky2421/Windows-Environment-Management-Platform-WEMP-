@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Security.Principal;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -50,12 +51,22 @@ public partial class PackageManagementPageViewModel : ObservableObject
     [ObservableProperty]
     private string _status = "就绪";
 
+    [ObservableProperty]
+    private bool _isAdministrator;
+
+    /// <summary>非管理员时提示权限说明。</summary>
+    public bool ShowPermissionHint => !IsAdministrator;
+
     public PackageManagementPageViewModel(
         IPackageManagerService packages,
         ISoftwareGroupService groups)
     {
         _packages = packages;
         _groups = groups;
+
+        IsAdministrator = new WindowsPrincipal(WindowsIdentity.GetCurrent())
+            .IsInRole(WindowsBuiltInRole.Administrator);
+        OnPropertyChanged(nameof(ShowPermissionHint));
     }
 
     public async Task InitializeAsync()
@@ -76,27 +87,32 @@ public partial class PackageManagementPageViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshInstalledAsync()
     {
-        IsBusy = true;
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => IsBusy = true);
         try
         {
             var count = await _packages.SyncInstalledAsync();
             var list = await _packages.GetInstalledAsync(string.IsNullOrWhiteSpace(SearchText) ? null : SearchText);
-            Installed.Clear();
-            foreach (var item in list)
-            {
-                Installed.Add(item);
-            }
 
-            Status = $"已同步 {count} 个软件包";
+            // ObservableCollection 的增删必须在 UI 线程（绑定了 CollectionView）
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                Installed.Clear();
+                foreach (var item in list)
+                {
+                    Installed.Add(item);
+                }
+
+                Status = $"已同步 {count} 个软件包";
+            });
         }
         catch (Exception ex)
         {
-            Status = $"同步失败：{ex.Message}";
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => Status = $"同步失败：{ex.Message}");
             Log.Error(ex, "同步已安装软件失败");
         }
         finally
         {
-            IsBusy = false;
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => IsBusy = false);
         }
     }
 

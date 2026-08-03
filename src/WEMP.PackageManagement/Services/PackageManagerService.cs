@@ -11,7 +11,7 @@ namespace WEMP.PackageManagement.Services;
 
 /// <summary>软件包管理服务实现：winget 驱动，操作写入 package_operations 并审计。</summary>
 public sealed class PackageManagerService(
-    WempDbContext db,
+    IDbContextFactory<WempDbContext> dbFactory,
     IPackageProvider provider) : IPackageManagerService
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -26,16 +26,19 @@ public sealed class PackageManagerService(
     {
         var packages = await provider.ListAsync(cancellationToken);
 
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         db.InstalledSoftware.RemoveRange(db.InstalledSoftware.Where(s => s.Source == "winget"));
         var now = DateTime.Now;
         foreach (var package in packages.Where(p => !string.IsNullOrEmpty(p.Id)))
         {
+            var name = string.IsNullOrEmpty(package.Name) ? package.Id : package.Name;
             db.InstalledSoftware.Add(new InstalledSoftware
             {
-                Name = string.IsNullOrEmpty(package.Name) ? package.Id : package.Name,
+                Name = name,
                 Version = package.Version,
                 Source = "winget",
                 PackageId = package.Id,
+                IconPath = InstalledIconResolver.Resolve(name),
                 DetectedAt = now,
             });
         }
@@ -59,6 +62,7 @@ public sealed class PackageManagerService(
     public async Task<IReadOnlyList<InstalledSoftware>> GetInstalledAsync(
         string? search = null, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         IQueryable<InstalledSoftware> query = db.InstalledSoftware
             .Where(s => s.Source == "winget")
             .OrderBy(s => s.Name);
@@ -88,6 +92,7 @@ public sealed class PackageManagerService(
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var operation = new PackageOperation
             {
                 Action = "upgrade-all",
@@ -100,7 +105,7 @@ public sealed class PackageManagerService(
             await db.SaveChangesAsync(cancellationToken);
 
             var result = await provider.UpgradeAllAsync(cancellationToken);
-            await FinalizeOperationAsync(operation, result, "software.upgrade-all", cancellationToken);
+            await FinalizeOperationAsync(db, operation, result, "software.upgrade-all", cancellationToken);
             return operation;
         }
         finally
@@ -111,10 +116,13 @@ public sealed class PackageManagerService(
 
     public async Task<IReadOnlyList<PackageOperation>> GetOperationsAsync(
         int count, CancellationToken cancellationToken = default)
-        => await db.PackageOperations
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.PackageOperations
             .OrderByDescending(o => o.StartedAt)
             .Take(count)
             .ToListAsync(cancellationToken);
+    }
 
     private async Task<PackageOperation> ExecuteOperationAsync(
         string action,
@@ -126,6 +134,7 @@ public sealed class PackageManagerService(
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var operation = new PackageOperation
             {
                 Action = action,
@@ -139,7 +148,7 @@ public sealed class PackageManagerService(
             await db.SaveChangesAsync(cancellationToken);
 
             var result = await executor(cancellationToken);
-            await FinalizeOperationAsync(operation, result, $"software.{action}", cancellationToken);
+            await FinalizeOperationAsync(db, operation, result, $"software.{action}", cancellationToken);
             return operation;
         }
         finally
@@ -148,8 +157,8 @@ public sealed class PackageManagerService(
         }
     }
 
-    private async Task FinalizeOperationAsync(
-        PackageOperation operation, CommandResult result, string auditAction, CancellationToken cancellationToken)
+    private static async Task FinalizeOperationAsync(
+        WempDbContext db, PackageOperation operation, CommandResult result, string auditAction, CancellationToken cancellationToken)
     {
         operation.FinishedAt = DateTime.Now;
         operation.Result = result.Success ? "success" : "failed";

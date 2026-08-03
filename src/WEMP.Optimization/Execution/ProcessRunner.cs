@@ -5,10 +5,20 @@ namespace WEMP.Optimization.Execution;
 /// <summary>外部命令执行工具：静默运行并捕获输出。</summary>
 public static class ProcessRunner
 {
-    /// <summary>执行外部命令，返回退出码与合并输出。超时视为失败。</summary>
-    public static async Task<CommandResult> RunAsync(
+    /// <summary>执行外部命令（参数按空格拆分），返回退出码与合并输出。超时视为失败。</summary>
+    public static Task<CommandResult> RunAsync(
         string executable,
         string arguments,
+        CancellationToken cancellationToken,
+        TimeSpan? timeout = null)
+        => RunAsync(executable,
+            arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            cancellationToken, timeout);
+
+    /// <summary>执行外部命令（参数数组原样传入，支持含空格的路径/参数），返回退出码与合并输出。超时视为失败。</summary>
+    public static async Task<CommandResult> RunAsync(
+        string executable,
+        IEnumerable<string> arguments,
         CancellationToken cancellationToken,
         TimeSpan? timeout = null)
     {
@@ -21,9 +31,9 @@ public static class ProcessRunner
             RedirectStandardError = true,
         };
 
-        foreach (var part in arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var arg in arguments)
         {
-            startInfo.ArgumentList.Add(part);
+            startInfo.ArgumentList.Add(arg);
         }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

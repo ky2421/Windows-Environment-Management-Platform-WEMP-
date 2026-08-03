@@ -21,6 +21,7 @@ public partial class OptimizationItemViewModel : ObservableObject
         Principle = item.Principle;
         Risk = item.Risk;
         Recommendation = item.Recommendation;
+        RiskLevel = string.IsNullOrEmpty(item.RiskLevel) ? "safe" : item.RiskLevel;
         IsRecoverable = item.IsRecoverable;
         IsSelected = item.Recommendation == "required";
     }
@@ -38,6 +39,17 @@ public partial class OptimizationItemViewModel : ObservableObject
     public string? Risk { get; }
 
     public string Recommendation { get; }
+
+    /// <summary>风险等级：safe / advanced / aggressive（页面分组依据）。</summary>
+    public string RiskLevel { get; }
+
+    /// <summary>分组排序权重：安全 0 / 进阶 1 / 激进 2。</summary>
+    public int RiskLevelWeight => RiskLevel switch
+    {
+        "advanced" => 1,
+        "aggressive" => 2,
+        _ => 0,
+    };
 
     public bool IsRecoverable { get; }
 
@@ -66,8 +78,58 @@ public partial class OptimizationItemViewModel : ObservableObject
         "disk" => "磁盘",
         "power" => "电源",
         "memory" => "内存",
+        "visual" => "视觉",
+        "background" => "后台",
+        "gpu" => "图形",
+        "appx" => "预装应用",
+        "pagefile" => "虚拟内存",
+        "device" => "设备",
+        "bios" => "BIOS",
+        "timer" => "计时器",
+        "guide" => "指引",
+        "scheduled-task" => "计划任务",
+        "windows-feature" => "可选功能",
         _ => category,
     };
+}
+
+/// <summary>历史记录展示包装：把英文操作类型 / 结果 / 优化项代码转换为用户可读的中文。</summary>
+public sealed class HistoryItemViewModel
+{
+    public HistoryItemViewModel(OptimizationRecord record, string? itemName)
+    {
+        Id = record.Id;
+        ExecutedAtText = record.ExecutedAt.ToString("HH:mm:ss");
+        Action = record.Action;
+        Result = record.Result;
+        ActionText = record.Action == "rollback" ? "回滚" : "优化";
+        ResultText = record.Result == "success" ? "成功" : "失败";
+        IsSuccess = record.Result == "success";
+        // 历史记录可能引用已移除的优化项，找不到中文名时回退显示原始代码
+        ItemName = string.IsNullOrEmpty(itemName) ? record.ItemCode : itemName;
+        ItemCode = record.ItemCode;
+    }
+
+    public long Id { get; }
+
+    /// <summary>原始操作类型（apply / rollback），回滚按钮显示条件依赖。</summary>
+    public string Action { get; }
+
+    /// <summary>原始执行结果（success / failed），回滚按钮显示条件依赖。</summary>
+    public string Result { get; }
+
+    public string ExecutedAtText { get; }
+
+    public string ActionText { get; }
+
+    public string ResultText { get; }
+
+    public bool IsSuccess { get; }
+
+    public string ItemName { get; }
+
+    /// <summary>原始优化项代码（ToolTip 展示，便于排查）。</summary>
+    public string ItemCode { get; }
 }
 
 /// <summary>系统优化页面视图模型。</summary>
@@ -78,7 +140,7 @@ public partial class OptimizationPageViewModel : ObservableObject
 
     public ObservableCollection<OptimizationItemViewModel> Items { get; } = [];
 
-    public ObservableCollection<OptimizationRecord> History { get; } = [];
+    public ObservableCollection<HistoryItemViewModel> History { get; } = [];
 
     [ObservableProperty]
     private bool _isRunning;
@@ -115,7 +177,11 @@ public partial class OptimizationPageViewModel : ObservableObject
             var items = await _service.GetItemsAsync();
 
             Items.Clear();
-            foreach (var item in items)
+            // 按 风险等级 → 类别 → 序号 排序，保证分组顺序：安全级 → 进阶 → 激进
+            foreach (var item in items
+                         .OrderBy(i => RiskLevelWeightOf(i.RiskLevel))
+                         .ThenBy(i => i.Category)
+                         .ThenBy(i => i.SortOrder))
             {
                 Items.Add(new OptimizationItemViewModel(item));
             }
@@ -129,6 +195,13 @@ public partial class OptimizationPageViewModel : ObservableObject
             Status = $"加载失败：{ex.Message}";
         }
     }
+
+    private static int RiskLevelWeightOf(string riskLevel) => riskLevel switch
+    {
+        "advanced" => 1,
+        "aggressive" => 2,
+        _ => 0,
+    };
 
     [RelayCommand]
     private async Task OneKeyOptimizeAsync()
@@ -162,6 +235,14 @@ public partial class OptimizationPageViewModel : ObservableObject
         await RunAsync(
             () => _service.RollbackAllAsync(),
             "回滚全部");
+    }
+
+    [RelayCommand]
+    private async Task RollbackHistoryAsync(long recordId)
+    {
+        await RunAsync(
+            () => _service.RollbackRecordAsync(recordId),
+            "历史回滚");
     }
 
     private async Task RunAsync(
@@ -213,10 +294,13 @@ public partial class OptimizationPageViewModel : ObservableObject
     private async Task RefreshHistoryAsync()
     {
         var history = await _service.GetHistoryAsync(20);
+        // code → 中文名映射，让用户能看懂回滚的是哪项操作
+        var names = (await _service.GetItemsAsync())
+            .ToDictionary(i => i.Code, i => i.Name, StringComparer.OrdinalIgnoreCase);
         History.Clear();
         foreach (var record in history)
         {
-            History.Add(record);
+            History.Add(new HistoryItemViewModel(record, names.GetValueOrDefault(record.ItemCode)));
         }
     }
 }

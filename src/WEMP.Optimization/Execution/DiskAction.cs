@@ -43,6 +43,19 @@ public sealed class DiskAction : IOptimizationAction
             return new CleanupStats(0, 0, "休眠已关闭");
         }
 
+        if (IsTrimCommand(target))
+        {
+            // SSD 手动优化：发送 TRIM 指令回收已删除块（需管理员）
+            var result = await ProcessRunner.RunAsync(
+                "optimize-volume.exe", "-DriveLetter C -ReTrim -Verbose", cancellationToken, TimeSpan.FromMinutes(5));
+            if (!result.Success)
+            {
+                throw new InvalidOperationException($"磁盘优化失败（需管理员权限）：{result.Output.Trim()}");
+            }
+
+            return new CleanupStats(0, 0, "TRIM 优化完成");
+        }
+
         // 清理临时文件
         var paths = new List<string>
         {
@@ -89,6 +102,11 @@ public sealed class DiskAction : IOptimizationAction
     {
         return target.Command?.Contains("hiberfil", StringComparison.OrdinalIgnoreCase) == true
             || target.Command?.Contains("powercfg /h", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private static bool IsTrimCommand(OptimizationTarget target)
+    {
+        return target.Command?.Contains("optimize-volume", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static (int Files, long FreedBytes) CleanTemporaryFiles(IEnumerable<string> roots)

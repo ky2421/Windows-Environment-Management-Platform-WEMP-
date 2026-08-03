@@ -10,6 +10,8 @@
   <ItemGroup>
     <ProjectReference Include="..\WEMP.Core\WEMP.Core.csproj" />
     <ProjectReference Include="..\WEMP.Infrastructure\WEMP.Infrastructure.csproj" />
+    <ProjectReference Include="..\WEMP.Optimization\WEMP.Optimization.csproj" />
+    <ProjectReference Include="..\WEMP.PackageManagement\WEMP.PackageManagement.csproj" />
   </ItemGroup>
 
   <ItemGroup>

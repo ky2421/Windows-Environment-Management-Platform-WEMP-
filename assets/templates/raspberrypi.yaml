@@ -1,0 +1,21 @@
+# 环境模板：Raspberry Pi Linux
+
+id: raspberrypi
+name: Raspberry Pi Linux 环境
+description: 树莓派 Linux 开发（目标设备为 Linux 环境，本机仅提供工具链说明，无 Windows 安装项）
+version: "1.0"
+
+tools:
+  - name: raspberrypi
+    versionManager: direct
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands: []
+
+prerequisites: []

@@ -10,7 +10,11 @@ public sealed class CommandValidator : IToolValidator
     {
         try
         {
-            var result = await ProcessRunner.RunAsync("cmd.exe", $"/c {command}", cancellationToken).ConfigureAwait(false);
+            // 使用注册表中的最新 PATH（含系统+用户），使新安装工具的命令可被解析
+            var result = await ProcessRunner.RunAsync("cmd.exe", $"/c {command}", cancellationToken, environment: new Dictionary<string, string>
+            {
+                ["PATH"] = BuildLatestPath(),
+            }).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(expected))
             {
                 var regex = new Regex(expected, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -23,6 +27,21 @@ public sealed class CommandValidator : IToolValidator
         catch (Exception ex)
         {
             return new ValidationResult(false, "", $"验证执行失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>合并系统与用户的注册表 PATH（顺序：系统 → 用户），读取失败时回退到进程环境。</summary>
+    public static string BuildLatestPath()
+    {
+        try
+        {
+            var machine = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.Machine) ?? "";
+            var user = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "";
+            return string.Join(';', machine.TrimEnd(';'), user.TrimStart(';'));
+        }
+        catch (Exception)
+        {
+            return Environment.GetEnvironmentVariable("Path") ?? "";
         }
     }
 }

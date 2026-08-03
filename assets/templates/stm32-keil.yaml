@@ -1,0 +1,22 @@
+# 环境模板：STM32 Keil MDK
+
+id: stm32-keil
+name: STM32 Keil MDK
+description: STM32 嵌入式开发（Keil MDK-ARM，无 winget 包，需从 ARM 官网手动安装）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: keil
+    versionManager: direct
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands: []
+
+prerequisites: []

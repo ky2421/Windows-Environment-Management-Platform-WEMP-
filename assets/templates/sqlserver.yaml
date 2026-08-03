@@ -1,0 +1,24 @@
+# 环境模板：SQL Server
+
+id: sqlserver
+name: SQL Server 数据库
+description: 微软关系型数据库（SQL Server 2022 Developer 版）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: sqlserver
+    versionManager: direct
+    optional: false
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "winget list --id Microsoft.SQLServer.2022.Developer"
+      expected: "Microsoft.SQLServer.2022.Developer"
+
+prerequisites: []

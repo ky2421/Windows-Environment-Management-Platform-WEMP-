@@ -230,6 +230,33 @@ namespace WEMP.Migrations
                     b.ToTable("backup_tasks", (string)null);
                 });
 
+            modelBuilder.Entity("WEMP.Infrastructure.Data.Entities.CustomGame", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("ProcessName")
+                        .IsUnique();
+
+                    b.ToTable("custom_games", (string)null);
+                });
+
             modelBuilder.Entity("WEMP.Infrastructure.Data.Entities.EnvDeployLog", b =>
                 {
                     b.Property<long>("Id")
@@ -505,6 +532,9 @@ namespace WEMP.Migrations
                     b.Property<DateTime>("DetectedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("IconPath")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("InstallDate")
                         .HasColumnType("TEXT");
 
@@ -623,6 +653,10 @@ namespace WEMP.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Risk")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")

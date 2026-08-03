@@ -1,0 +1,30 @@
+# 环境模板：Deno / Bun 运行时
+
+id: deno-bun
+name: Deno / Bun 运行时
+description: 新一代 JS/TS 运行时（Node.js 替代品）：Deno + Bun。⚠ 下载源为 GitHub，需加速器
+deployWarning: "下载源为 GitHub，可能需要加速器"
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: deno
+    versionManager: direct
+    optional: false
+  - name: bun
+    versionManager: direct
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "deno --version"
+      expected: "deno .*"
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

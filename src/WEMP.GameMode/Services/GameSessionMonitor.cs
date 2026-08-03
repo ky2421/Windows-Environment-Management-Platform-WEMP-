@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using Serilog;
 using WEMP.GameMode.Detection;
 
@@ -51,23 +53,59 @@ public sealed class GameSessionMonitor : IDisposable
                 return;
             }
 
+            var session = _sessionService.CurrentSession;
             var pid = ForegroundWindow.GetForegroundProcessId();
 
-            if (pid is not null && _detector.IsGameProcessById(pid.Value))
+            // 有进行中的会话：只要游戏进程仍存活就继续计时。
+            // 玩家切到浏览器/其他窗口不打断会话，进程退出才结束。
+            if (session is not null)
             {
-                if (_sessionService.CurrentSession is null)
+                if (!IsProcessAlive(session.ProcessId))
                 {
+                    await _sessionService.EndCurrentSessionAsync();
+                }
+                else if (pid is not null && pid.Value != session.ProcessId
+                         && _detector.IsGameProcessById(pid.Value))
+                {
+                    // 前台切到另一个已识别游戏（如先开 A 再开 B）：结束旧会话，切换新会话
+                    await _sessionService.EndCurrentSessionAsync();
                     await _sessionService.StartSessionAsync(pid.Value);
                 }
+
+                return;
             }
-            else if (_sessionService.CurrentSession is not null)
+
+            // 无会话：前台命中游戏库则开始
+            if (pid is not null && _detector.IsGameProcessById(pid.Value))
             {
-                await _sessionService.EndCurrentSessionAsync();
+                await _sessionService.StartSessionAsync(pid.Value);
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "游戏模式自动监测异常");
+        }
+    }
+
+    private static bool IsProcessAlive(int? processId)
+    {
+        if (processId is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var process = Process.GetProcessById(processId.Value);
+            return !process.HasExited;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return false; // 进程不存在或已退出
+        }
+        catch (Win32Exception)
+        {
+            return true; // 无权限访问（罕见）：保守保持会话，避免误截断
         }
     }
 }

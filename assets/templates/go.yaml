@@ -1,0 +1,33 @@
+# 环境模板：Go 开发环境
+
+id: go-122
+name: Go 开发环境
+description: Go 1.22 + GOPROXY 国内镜像（goproxy.cn）+ 常用工具（golangci-lint）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: go
+    version: "1.22"
+    versionManager: direct    # direct / goenv
+    optional: false
+  - name: golangci-lint
+    optional: true
+
+environmentVariables:
+  - name: GOPROXY
+    value: "https://goproxy.cn,direct"
+    scope: user
+    overwrite: false
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "go version"
+      expected: 'go version go1\.2[0-9].*'
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"

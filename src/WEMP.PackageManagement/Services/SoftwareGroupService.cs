@@ -6,19 +6,23 @@ namespace WEMP.PackageManagement.Services;
 
 /// <summary>软件分组服务实现：分组 CRUD + 一键安装。</summary>
 public sealed class SoftwareGroupService(
-    WempDbContext db,
+    IDbContextFactory<WempDbContext> dbFactory,
     IPackageManagerService packageManager) : ISoftwareGroupService
 {
     public async Task<IReadOnlyList<SoftwareGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
-        => await db.SoftwareGroups
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        return await db.SoftwareGroups
             .Include(g => g.Items)
             .OrderBy(g => g.SortOrder)
             .ThenBy(g => g.Id)
             .ToListAsync(cancellationToken);
+    }
 
     public async Task<SoftwareGroup> CreateGroupAsync(
         string name, string? description, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var group = new SoftwareGroup
         {
             Name = name.Trim(),
@@ -33,6 +37,7 @@ public sealed class SoftwareGroupService(
 
     public async Task DeleteGroupAsync(long groupId, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var group = await db.SoftwareGroups
             .Include(g => g.Items)
             .FirstOrDefaultAsync(g => g.Id == groupId, cancellationToken);
@@ -46,6 +51,7 @@ public sealed class SoftwareGroupService(
     public async Task AddItemAsync(
         long groupId, string packageId, string? displayName, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         packageId = packageId.Trim();
         var exists = await db.SoftwareGroupItems.AnyAsync(
             i => i.GroupId == groupId && i.PackageId == packageId, cancellationToken);
@@ -66,6 +72,7 @@ public sealed class SoftwareGroupService(
 
     public async Task RemoveItemAsync(long itemId, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var item = await db.SoftwareGroupItems.FindAsync([itemId], cancellationToken);
         if (item is not null)
         {
@@ -76,6 +83,7 @@ public sealed class SoftwareGroupService(
 
     public async Task<int> InstallGroupAsync(long groupId, CancellationToken cancellationToken = default)
     {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var group = await db.SoftwareGroups
             .Include(g => g.Items)
             .FirstOrDefaultAsync(g => g.Id == groupId, cancellationToken);

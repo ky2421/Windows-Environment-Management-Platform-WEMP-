@@ -9,10 +9,11 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <Style x:Key="ToolButton" TargetType="Button">
-            <Setter Property="Padding" Value="12,6" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-        </Style>
+        <CollectionViewSource x:Key="GroupedItems" Source="{Binding Items}">
+            <CollectionViewSource.GroupDescriptions>
+                <PropertyGroupDescription PropertyName="RiskLevel" />
+            </CollectionViewSource.GroupDescriptions>
+        </CollectionViewSource>
     </UserControl.Resources>
 
     <Grid Margin="24">
@@ -26,34 +27,54 @@
 
         <!-- 标题与工具栏 -->
         <DockPanel Grid.Row="0">
-            <TextBlock Text="系统优化"
-                       FontSize="22" FontWeight="Bold"
+            <TextBlock Text="系统优化" Style="{StaticResource PageTitleStyle}"
                        VerticalAlignment="Center" />
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button Style="{StaticResource ToolButton}"
-                        Content="一键优化"
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- 主操作 -->
+                <Button Style="{StaticResource AccentButtonStyle}"
                         Command="{Binding OneKeyOptimizeCommand}"
-                        IsEnabled="{Binding CanOperate}" />
-                <Button Style="{StaticResource ToolButton}"
-                        Content="优化选中项"
-                        Command="{Binding OptimizeSelectedCommand}"
-                        IsEnabled="{Binding CanOperate}" />
-                <Button Style="{StaticResource ToolButton}"
-                        Content="回滚选中项"
+                        Margin="0,0,8,0"
+                        IsEnabled="{Binding CanOperate}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE945;" FontSize="12"
+                                   Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="一键优化" Foreground="White" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <!-- 次级操作 -->
+                <Button Command="{Binding OptimizeSelectedCommand}"
+                        Padding="12,6" Margin="0,0,16,0"
+                        IsEnabled="{Binding CanOperate}">
+                    <TextBlock Text="优化选中项" VerticalAlignment="Center" />
+                </Button>
+                <!-- 回滚操作 -->
+                <Button Style="{StaticResource WarnButtonStyle}"
                         Command="{Binding RollbackSelectedCommand}"
-                        IsEnabled="{Binding CanOperate}" />
-                <Button Style="{StaticResource ToolButton}"
-                        Content="回滚全部"
+                        IsEnabled="{Binding CanOperate}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE7A7;" FontSize="12"
+                                   Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="回滚选中项" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource WarnButtonStyle}"
                         Command="{Binding RollbackAllCommand}"
-                        IsEnabled="{Binding CanOperate}" />
+                        Margin="8,0,0,0"
+                        IsEnabled="{Binding CanOperate}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="&#xE7A7;" FontSize="12"
+                                   Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="回滚全部" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </DockPanel>
 
         <!-- 状态与提示 -->
         <StackPanel Grid.Row="1" Margin="0,10,0,0">
-            <TextBlock Text="{Binding Status}" Foreground="#444444" />
+            <TextBlock Text="{Binding Status}" Foreground="{DynamicResource TextSecondaryBrush}" />
             <TextBlock Text="部分优化（服务、注册表 HKLM、DNS、电源）需要管理员权限，非管理员运行时将记录失败原因。"
-                       Foreground="#AA7700"
+                       Foreground="{DynamicResource WarningBrush}"
                        FontSize="12"
                        Margin="0,4,0,0"
                        Visibility="{Binding ShowPermissionHint, Converter={StaticResource BoolToVis}}" />
@@ -61,10 +82,93 @@
 
         <!-- 优化项列表 -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
-            <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl ItemsSource="{Binding Source={StaticResource GroupedItems}}">
+                <ItemsControl.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <!-- 风险等级分隔线：级别标题 + 风险提示 -->
+                                <Grid Margin="0,12,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Rectangle Width="4" RadiusX="2" RadiusY="2" VerticalAlignment="Stretch">
+                                        <Rectangle.Style>
+                                            <Style TargetType="Rectangle">
+                                                <Setter Property="Fill" Value="#3BA55D" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Name}" Value="advanced">
+                                                        <Setter Property="Fill" Value="#E8A33D" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Name}" Value="aggressive">
+                                                        <Setter Property="Fill" Value="#E5484D" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Rectangle.Style>
+                                    </Rectangle>
+
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock FontSize="14" FontWeight="Bold">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="安全级优化" />
+                                                    <Setter Property="Foreground" Value="#3BA55D" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Name}" Value="advanced">
+                                                            <Setter Property="Text" Value="进阶优化" />
+                                                            <Setter Property="Foreground" Value="#E8A33D" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Name}" Value="aggressive">
+                                                            <Setter Property="Text" Value="激进优化" />
+                                                            <Setter Property="Foreground" Value="#E5484D" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="低风险：不破坏系统、可随时回滚，可放心勾选执行" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Name}" Value="advanced">
+                                                            <Setter Property="Text" Value="中风险：可能影响部分功能或需重启生效，执行前请查看风险说明" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Name}" Value="aggressive">
+                                                            <Setter Property="Text" Value="高风险：可能蓝屏 / 闪退 / 系统安全等级下降 / 不可回滚，请谨慎操作" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ItemsControl.GroupStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="0,6,0,0" Padding="12" Background="#F5F6F8" CornerRadius="6">
+                        <Border Margin="0,6,0,0" Padding="12" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="6">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding RiskLevel}" Value="advanced">
+                                            <Setter Property="BorderBrush" Value="#66E8A33D" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding RiskLevel}" Value="aggressive">
+                                            <Setter Property="BorderBrush" Value="#66E5484D" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="32" />
@@ -79,16 +183,16 @@
                                 <StackPanel Grid.Column="1" Margin="8,0,12,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Name}" FontWeight="Bold" />
-                                        <Border Background="#E3E9F3" CornerRadius="3" Padding="6,1" Margin="8,0,0,0">
+                                        <Border Background="{DynamicResource AccentMutedBrush}" CornerRadius="3" Padding="6,1" Margin="8,0,0,0">
                                             <TextBlock Text="{Binding CategoryText}" FontSize="11" />
                                         </Border>
-                                        <Border Background="#F0E7D4" CornerRadius="3" Padding="6,1" Margin="6,0,0,0">
-                                            <TextBlock FontSize="11" Text="{Binding Recommendation}" />
+                                        <Border Background="#FBF2DF" CornerRadius="3" Padding="6,1" Margin="6,0,0,0">
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource WarningBrush}" Text="{Binding Recommendation}" />
                                         </Border>
                                     </StackPanel>
-                                    <TextBlock Text="{Binding Principle}" FontSize="12" Foreground="#666666"
+                                    <TextBlock Text="{Binding Principle}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                                TextWrapping="Wrap" Margin="0,4,0,0" />
-                                    <TextBlock Text="{Binding Risk}" FontSize="11" Foreground="#AA6666"
+                                    <TextBlock Text="{Binding Risk}" FontSize="11" Foreground="{DynamicResource DangerBrush}"
                                                TextWrapping="Wrap" Margin="0,2,0,0" />
                                 </StackPanel>
 
@@ -114,15 +218,69 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="140" />
                                 <ColumnDefinition Width="60" />
-                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="70" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding ExecutedAt, StringFormat=HH:mm:ss}" FontSize="12" Foreground="#888888" />
-                            <TextBlock Grid.Column="1" Text="{Binding Action}" FontSize="12" />
-                            <TextBlock Grid.Column="2" Text="{Binding Result}" FontSize="12"
-                                       Foreground="{Binding Result, Converter={x:Static ui:OptimizationPage.ResultForegroundConverter}}" />
-                            <TextBlock Grid.Column="3" Text="{Binding ItemCode}" FontSize="12" Foreground="#666666"
-                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding ExecutedAtText}" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}" />
+                            <TextBlock Grid.Column="1" Text="{Binding ActionText}" FontSize="12" />
+                            <TextBlock Grid.Column="2" Text="{Binding ResultText}" FontSize="12"
+                                       Foreground="{Binding IsSuccess, Converter={x:Static ui:OptimizationPage.SuccessForegroundConverter}}" />
+                            <TextBlock Grid.Column="4" Text="{Binding ItemName}" FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding ItemCode}" />
+                            <!-- 历史回滚：仅对成功的 apply 记录显示；内联样式含自定义模板保证悬停/按下配色清晰 -->
+                            <Button Grid.Column="3" Content="回滚" Margin="6,0,0,0"
+                                    Command="{Binding DataContext.RollbackHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding Id}">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Setter Property="Background" Value="#FBF2DF" />
+                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                        <Setter Property="BorderBrush" Value="#E6D3A6" />
+                                        <Setter Property="FontSize" Value="12" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                        <Setter Property="Padding" Value="10,3" />
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="Bd" CornerRadius="4" BorderThickness="1"
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#F6EBCE" />
+                                                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D9BF85" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#F0E3C5" />
+                                                            <Setter TargetName="Bd" Property="BorderBrush" Value="#CDB073" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsEnabled" Value="False">
+                                                            <Setter TargetName="Bd" Property="Opacity" Value="0.4" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding Action}" Value="apply" />
+                                                    <Condition Binding="{Binding Result}" Value="success" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

@@ -3,8 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="clr-namespace:WEMP.DevEnvironment.UI"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="900">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
 
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -14,80 +19,120 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0">
-            <TextBlock Text="开发环境" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
-            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="#666666" />
+            <TextBlock Text="开发环境" Style="{StaticResource PageTitleStyle}" VerticalAlignment="Center" />
+            <TextBlock Text="部署涉及环境变量与系统级工具安装，需要管理员权限。"
+                       FontSize="12" Foreground="{DynamicResource WarningBrush}"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       Visibility="{Binding ShowPermissionHint, Converter={StaticResource BoolToVis}}" />
+            <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
         </DockPanel>
 
-        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="#666666" FontSize="12"
+        <TextBlock Grid.Row="1" Margin="0,6,0,0" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"
                    Text="基于 YAML 模板一键部署工具链：工具安装 → 环境变量 → 配置文件 → 验证 → 快照。" />
 
         <Grid Grid.Row="2" Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="4*" />
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <!-- 模板库占 70%，部署实例占 30% -->
+                <RowDefinition Height="7*" />
+                <RowDefinition Height="3*" />
+            </Grid.RowDefinitions>
 
-            <!-- 左：模板库 -->
-            <DockPanel Grid.Column="0">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <Button Content="部署选中模板" Padding="12,4" DockPanel.Dock="Right"
+            <!-- 模板库：整行横向卡片，宽度铺满页面 -->
+            <Grid Grid.Row="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <DockPanel Margin="0,0,0,8">
+                    <Button Style="{StaticResource AccentButtonStyle}" Content="部署选中模板" Padding="12,4" DockPanel.Dock="Right"
                             Command="{Binding DeployCommand}" />
                     <TextBlock Text="模板库" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </DockPanel>
-                <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}"
-                         BorderBrush="#DDDDDD">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="2">
-                                <TextBlock FontWeight="SemiBold">
-                                    <Run Text="{Binding Name, Mode=OneWay}" /><Run Text="  v" /><Run Text="{Binding Version, Mode=OneWay}" />
-                                </TextBlock>
-                                <TextBlock FontSize="11" Foreground="#888888" Text="{Binding Description}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                              PreviewMouseWheel="OnCardAreaPreviewMouseWheel">
+                    <ListBox ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="220" Margin="0,0,12,12" Padding="12" CornerRadius="6" BorderThickness="1"
+                                        Background="{DynamicResource CardBackgroundBrush}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <TextBlock FontWeight="SemiBold">
+                                            <Run Text="{Binding Name, Mode=OneWay}" /><Run Text="  v" />
+                                            <Run Text="{Binding Version, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" />
+                                        </TextBlock>
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"
+                                                   Text="{Binding Description}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </Grid>
 
-            <!-- 右：实例列表 -->
-            <DockPanel Grid.Column="2">
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                        <Button Content="验证" Padding="12,4" Margin="4,0,0,0"
-                                Command="{Binding ValidateCommand}" CommandParameter="{Binding SelectedInstance}" />
-                        <Button Content="回滚" Padding="12,4" Margin="4,0,0,0"
-                                Command="{Binding RollbackCommand}" CommandParameter="{Binding SelectedInstance}" />
-                    </StackPanel>
-                    <TextBlock Text="部署实例" FontWeight="SemiBold" VerticalAlignment="Center" />
-                </DockPanel>
-                <ListBox ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}"
-                         BorderBrush="#DDDDDD">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="2">
-                                <TextBlock FontWeight="SemiBold">
-                                    <Run Text="{Binding Name, Mode=OneWay}" /><Run Text="  ·  " />
-                                    <Run Text="{Binding Status, Mode=OneWay}" Foreground="#666666" />
-                                </TextBlock>
-                                <TextBlock FontSize="11" Foreground="#888888">
-                                    <Run Text="{Binding Template.Name, Mode=OneWay}" /><Run Text="  部署于 " />
-                                    <Run Text="{Binding DeployedAt, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd HH:mm}}" />
-                                </TextBlock>
-                                <ItemsControl ItemsSource="{Binding Tools}" Margin="0,4,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock FontSize="11" Foreground="#666666">
-                                                <Run Text="{Binding ToolName, Mode=OneWay}" /><Run Text="  " />
-                                                <Run Text="{Binding Status, Mode=OneWay}" />
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+            <!-- 部署实例：整行折叠区 -->
+            <DockPanel Grid.Row="1" Margin="0,4,0,0">
+                <!-- 展开/收起按钮：默认收起实例列表，点击才显示 -->
+                <Button DockPanel.Dock="Top" Content="{Binding InstancesToggleText}" HorizontalAlignment="Left"
+                        Padding="12,4" Margin="0,0,0,8" Command="{Binding ToggleInstancesCommand}" />
+                <Grid Visibility="{Binding IsInstancesExpanded, Converter={StaticResource BoolToVis}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Content="验证" Padding="12,4" Margin="4,0,0,0"
+                                    Command="{Binding ValidateCommand}" CommandParameter="{Binding SelectedInstance}" />
+                            <Button Style="{StaticResource DangerButtonStyle}" Content="回滚" Padding="12,4" Margin="4,0,0,0"
+                                    Command="{Binding RollbackCommand}" CommandParameter="{Binding SelectedInstance}" />
+                        </StackPanel>
+                        <TextBlock Text="部署实例" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ListBox Grid.Row="1" ItemsSource="{Binding Instances}" SelectedItem="{Binding SelectedInstance}"
+                             BorderBrush="{DynamicResource ControlBorderBrush}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="2">
+                                    <TextBlock FontWeight="SemiBold">
+                                        <Run Text="{Binding Name, Mode=OneWay}" /><Run Text="  ·  " />
+                                        <Run Text="{Binding Status, Mode=OneWay}" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    </TextBlock>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}">
+                                        <Run Text="{Binding Template.Name, Mode=OneWay}" /><Run Text="  部署于 " />
+                                        <Run Text="{Binding DeployedAt, Mode=OneWay, StringFormat={}{0:yyyy-MM-dd HH:mm}}" FontFamily="{StaticResource MonoFont}" />
+                                    </TextBlock>
+                                    <ItemsControl ItemsSource="{Binding Tools}" Margin="0,4,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
+                                                    <Run Text="{Binding ToolName, Mode=OneWay}" /><Run Text="  " />
+                                                    <Run Text="{Binding Status, Mode=OneWay}" />
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
             </DockPanel>
         </Grid>
     </Grid>

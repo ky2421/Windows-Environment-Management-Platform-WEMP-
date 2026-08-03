@@ -1,0 +1,31 @@
+# 环境模板：Rust 开发环境
+
+id: rust-stable
+name: Rust 开发环境
+description: Rustup + stable 工具链 + cargo 常用工具（cargo-nextest）
+version: "1.0"
+minWindowsVersion: "10.0.19045"
+
+tools:
+  - name: rust
+    version: "stable"
+    versionManager: direct    # direct / rustup
+    optional: false
+  - name: cargo-nextest
+    optional: true
+
+environmentVariables: []
+
+config:
+  files: []
+
+validation:
+  commands:
+    - command: "cargo --version"
+      expected: 'cargo 1\..*'
+    - command: "rustc --version"
+      expected: 'rustc 1\..*'
+
+prerequisites:
+  - tool: git
+    minVersion: "2.0"
