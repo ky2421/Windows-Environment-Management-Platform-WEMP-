@@ -16,12 +16,6 @@ Windows 环境管理平台：一个面向 Windows 的集成化环境管理工具
 - **备份与恢复**：任务化全量/增量文件备份，按记录还原
 - **日志中心**：操作审计查询与统计、Windows 事件日志聚合、异常规则扫描与处置
 
-## 截图
-
-| 主界面 | 系统优化 |
-|--------|----------|
-| ![主界面](img/screenshot-home.png) | ![系统优化](img/screenshot-optimization.png) |
-
 ## 安装
 
 ### 系统要求
@@ -84,7 +78,6 @@ docs/        文档（发布清单等）
 src/         源代码（按模块组织）
 tests/       单元测试
 assets/      静态资源（内置 YAML 模板）
-img/         产品截图
 database/    EF Core 迁移与种子数据
 scripts/     构建与发布脚本
 tools/       辅助工具（真实环境兼容性测试等）
