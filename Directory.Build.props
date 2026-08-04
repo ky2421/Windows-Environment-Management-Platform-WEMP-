@@ -19,7 +19,7 @@
     <Description>Windows 环境管理平台</Description>
     <Copyright>Copyright (c) 2026 WEMP Contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/wemp/wemp</RepositoryUrl>
+    <RepositoryUrl>https://github.com/ky2421/Windows-Environment-Management-Platform-WEMP-</RepositoryUrl>
 
     <!-- Deterministic builds -->
     <Deterministic>true</Deterministic>

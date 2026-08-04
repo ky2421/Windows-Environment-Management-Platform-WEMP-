@@ -32,7 +32,7 @@ Windows 环境管理平台：一个面向 Windows 的集成化环境管理工具
 
 ### 安装包
 
-从 [Releases](https://github.com/wemp/wemp/releases) 下载 `WEMP-1.0.0-setup.exe`，双击运行并按向导完成安装。安装后可通过开始菜单或桌面快捷方式启动。
+从 [Releases](https://github.com/ky2421/Windows-Environment-Management-Platform-WEMP-/releases) 下载 `WEMP-1.0.0-setup.exe`，双击运行并按向导完成安装。安装后可通过开始菜单或桌面快捷方式启动。
 
 ### 卸载
 
@@ -43,7 +43,7 @@ Windows 环境管理平台：一个面向 Windows 的集成化环境管理工具
 ### 构建
 
 ```powershell
-git clone https://github.com/wemp/wemp.git
+git clone https://github.com/ky2421/Windows-Environment-Management-Platform-WEMP-.git
 cd wemp
 dotnet restore
 dotnet build WEMP.sln
